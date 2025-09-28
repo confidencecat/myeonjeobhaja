@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+
+# 면접하자 - AI 기반 면접 연습 플랫폼
+# https://myeonjeobhaja.com
+
+Sitemap: https://myeonjeobhaja.com/sitemap.xml
