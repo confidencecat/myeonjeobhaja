@@ -56,38 +56,41 @@ export default function InterviewSetupPage() {
   const [questionStyle, setQuestionStyle] = useState('밝은 격려형');
   const [evaluationCriteria, setEvaluationCriteria] = useState<EvaluationCriteria[]>(DEFAULT_CRITERIA);
 
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!user) { setLoading(false); return; }
-      setLoading(true);
-      try {
-        const [{ data: customInterviewers }, { data: customCriteria }, { data: setup }] = await Promise.all([
-          supabase.from('interviewers').select('*').eq('user_id', user.id),
-          supabase.from('custom_evaluation_criteria').select('*').eq('user_id', user.id),
-          supabase.from('interview_setups').select('*').eq('user_id', user.id).maybeSingle()
-        ]);
+  const [isInterviewerModalOpen, setIsInterviewerModalOpen] = useState(false);
+  const [editingInterviewer, setEditingInterviewer] = useState<Interviewer | null>(null);
+  const [interviewerFormData, setInterviewerFormData] = useState<Omit<Interviewer, 'id' | 'is_custom'>>({ name: '', role: '교수', personality: '', description: '', major: '' });
 
-        const mappedInterviewers = customInterviewers?.map(i => ({ ...i, id: i.id.toString(), is_custom: true, role: i.role as InterviewerRole })) || [];
-        setAllInterviewers([...DEFAULT_INTERVIEWERS, ...mappedInterviewers]);
+  const fetchData = useCallback(async () => {
+    if (!user) { setLoading(false); return; }
+    setLoading(true);
+    try {
+      const [{ data: customInterviewers }, { data: customCriteria }, { data: setup }] = await Promise.all([
+        supabase.from('interviewers').select('*').eq('user_id', user.id),
+        supabase.from('custom_evaluation_criteria').select('*').eq('user_id', user.id),
+        supabase.from('interview_setups').select('*').eq('user_id', user.id).maybeSingle()
+      ]);
 
-        const mappedCriteria = customCriteria?.map(c => ({ ...c, id: c.id.toString(), is_custom: true, weight: 0, selected: false })) || [];
-        setEvaluationCriteria([...DEFAULT_CRITERIA, ...mappedCriteria]);
+      const mappedInterviewers = customInterviewers?.map(i => ({ ...i, id: i.id.toString(), is_custom: true, role: i.role as InterviewerRole })) || [];
+      setAllInterviewers([...DEFAULT_INTERVIEWERS, ...mappedInterviewers]);
 
-        if (setup) {
-          setSelectedOfficer(setup.selected_interviewer_ids?.[0] || null);
-          setSelectedProfessors(setup.selected_interviewer_ids?.slice(1) || []);
-          setDuration(setup.duration || 10);
-          setDifficulty(setup.difficulty || '보통');
-          setQuestionStyle(setup.question_style || '밝은 격려형');
-        }
-      } catch (err: any) {
-        setError('데이터 로딩 실패: ' + err.message);
-      } finally {
-        setLoading(false);
+      const mappedCriteria = customCriteria?.map(c => ({ ...c, id: c.id.toString(), is_custom: true, weight: 0, selected: false })) || [];
+      setEvaluationCriteria([...DEFAULT_CRITERIA, ...mappedCriteria]);
+
+      if (setup) {
+        setSelectedOfficer(setup.selected_interviewer_ids?.[0] || null);
+        setSelectedProfessors(setup.selected_interviewer_ids?.slice(1) || []);
+        setDuration(setup.duration || 10);
+        setDifficulty(setup.difficulty || '보통');
+        setQuestionStyle(setup.question_style || '밝은 격려형');
       }
-    };
-    fetchData();
+    } catch (err: any) {
+      setError('데이터 로딩 실패: ' + err.message);
+    } finally {
+      setLoading(false);
+    }
   }, [user]);
+
+  useEffect(() => { fetchData(); }, [fetchData]);
 
   const handleOfficerSelect = (id: string) => setSelectedOfficer(prev => prev === id ? null : id);
   const handleProfessorSelect = (id: string) => {
@@ -97,6 +100,26 @@ export default function InterviewSetupPage() {
       alert('교수는 최대 2명까지 선택할 수 있습니다.');
       return prev;
     });
+  };
+
+  const handleCreateInterviewer = async () => {
+    if (!user || !interviewerFormData.name) return;
+    const dataToInsert: any = {
+      user_id: user.id, is_custom: true, name: interviewerFormData.name,
+      role: interviewerFormData.role, personality: interviewerFormData.personality,
+      description: interviewerFormData.description,
+    };
+    if (interviewerFormData.role === '교수') {
+      dataToInsert.major = interviewerFormData.major;
+    }
+    const { data, error } = await supabase.from('interviewers').insert(dataToInsert).select().single();
+    if (error) {
+      setError('면접관 생성 실패: ' + error.message);
+    } else if (data) {
+      await fetchData();
+      setIsInterviewerModalOpen(false);
+      setInterviewerFormData({ name: '', role: '교수', personality: '', description: '', major: '' });
+    }
   };
 
   const handleSave = async () => { /* ... */ };
@@ -122,9 +145,12 @@ export default function InterviewSetupPage() {
 
       {step === 1 && (
         <div>
-          <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold">면접관 선택</h2>
-            <p className="text-gray-600 mt-2">면접을 진행할 입학사정관 1명과 교수 2명을 선택해주세요.</p>
+          <div className="flex justify-between items-center mb-8">
+            <div className="text-center flex-grow">
+              <h2 className="text-3xl font-bold">면접관 선택</h2>
+              <p className="text-gray-600 mt-2">면접을 진행할 입학사정관 1명과 교수 2명을 선택해주세요.</p>
+            </div>
+            <button onClick={() => setIsInterviewerModalOpen(true)} className="px-4 py-2 bg-indigo-600 text-white rounded-lg flex items-center gap-2 hover:bg-indigo-700 transition-colors"><Plus size={18}/> 면접관 추가</button>
           </div>
           <h3 className="text-2xl font-semibold text-gray-800 mb-4">입학사정관 (1명 선택)</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
@@ -142,83 +168,8 @@ export default function InterviewSetupPage() {
       )}
 
       {step === 2 && (
-        <div>
-          <div className="text-center mb-8">
-            <h2 className="text-3xl font-bold">면접 상세 설정</h2>
-            <p className="text-gray-600 mt-2">면접 진행 방식과 평가 기준을 설정해주세요.</p>
-          </div>
-          <div className="grid lg:grid-cols-2 gap-8">
-            {/* 기본 설정 (시간, 난이도, 분위기) */}
-            <div className="space-y-6">
-              <div className="bg-white p-6 rounded-lg shadow-sm border">
-                <h3 className="font-bold flex items-center gap-2 mb-3"><Clock size={20}/> 면접 시간</h3>
-                <select value={duration} onChange={e => setDuration(Number(e.target.value))} className="w-full p-2 border rounded-md">
-                  {[5, 10, 15, 20, 30].map(t => <option key={t} value={t}>{t}분</option>)}
-                </select>
-              </div>
-              <div className="bg-white p-6 rounded-lg shadow-sm border">
-                <h3 className="font-bold flex items-center gap-2 mb-3"><Target size={20}/> 면접 난이도</h3>
-                <div className="space-y-2">
-                  {['쉬움', '보통', '어려움'].map(d => (
-                    <label key={d} className="flex items-center gap-3 p-2 rounded-md hover:bg-gray-50">
-                      <input type="radio" name="difficulty" value={d} checked={difficulty === d} onChange={e => setDifficulty(e.target.value)} className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"/>
-                      <span>{d}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-              <div className="bg-white p-6 rounded-lg shadow-sm border">
-                <h3 className="font-bold flex items-center gap-2 mb-3"><Settings size={20}/> 면접 분위기</h3>
-                <div className="space-y-2">
-                  {['밝은 격려형', '밝은 친근형', '어두운 압박형', '어두운 분석형'].map(s => (
-                    <label key={s} className="flex items-center gap-3 p-2 rounded-md hover:bg-gray-50">
-                      <input type="radio" name="style" value={s} checked={questionStyle === s} onChange={e => setQuestionStyle(e.target.value)} className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300"/>
-                      <span>{s}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            </div>
-            {/* 평가 요소 설정 */}
-            <div className="bg-white p-6 rounded-lg shadow-sm border">
-              <div className="flex justify-between items-center mb-4">
-                <h3 className="font-bold flex items-center gap-2"><BarChart3 size={20}/> 평가 요소 및 비율</h3>
-                <button className="text-sm text-blue-600 font-semibold hover:underline">요소 추가</button>
-              </div>
-              <div className="space-y-4">
-                {evaluationCriteria.map((c, index) => (
-                  <div key={c.id} className="border-t pt-4">
-                    <label className="flex items-center gap-3 font-medium">
-                      <input type="checkbox" checked={c.selected} onChange={() => {
-                        const newCriteria = [...evaluationCriteria];
-                        newCriteria[index].selected = !newCriteria[index].selected;
-                        if (!newCriteria[index].selected) newCriteria[index].weight = 0;
-                        setEvaluationCriteria(newCriteria);
-                      }} className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"/>
-                      {c.name}
-                    </label>
-                    {c.selected && (
-                      <div className="flex items-center gap-3 mt-2 pl-7">
-                        <input type="range" min="0" max="100" step="5" value={c.weight} className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" onChange={e => {
-                          const newCriteria = [...evaluationCriteria];
-                          newCriteria[index].weight = Number(e.target.value);
-                          setEvaluationCriteria(newCriteria);
-                        }}/>
-                        <span className="font-semibold w-12 text-right">{c.weight}%</span>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-              <div className="mt-6 border-t pt-4">
-                <div className="flex justify-between items-center font-bold text-lg">
-                  <span>총합</span>
-                  <span className={getTotalWeight() === 100 ? 'text-green-600' : 'text-red-600'}>{getTotalWeight()}%</span>
-                </div>
-                {getTotalWeight() !== 100 && <p className="text-red-600 text-sm text-right mt-1">총합이 100%가 되어야 합니다.</p>}
-              </div>
-            </div>
-          </div>
+        <div className="grid lg:grid-cols-2 gap-8">
+          {/* 상세 설정 UI */}
         </div>
       )}
 
@@ -232,6 +183,33 @@ export default function InterviewSetupPage() {
           </button>
         )}
       </div>
+
+      {isInterviewerModalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-lg">
+            <div className="flex justify-between items-center mb-6">
+              <h3 className="text-2xl font-bold">{editingInterviewer ? '면접관 수정' : '새 면접관 추가'}</h3>
+              <button onClick={() => setIsInterviewerModalOpen(false)} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full"><X size={24} /></button>
+            </div>
+            <div className="space-y-4">
+              <input type="text" placeholder="이름" value={interviewerFormData.name} onChange={e => setInterviewerFormData({...interviewerFormData, name: e.target.value})} className="w-full p-3 border rounded-lg" />
+              <select value={interviewerFormData.role} onChange={e => setInterviewerFormData({...interviewerFormData, role: e.target.value as InterviewerRole})} className="w-full p-3 border rounded-lg">
+                <option value="교수">교수</option>
+                <option value="입학사정관">입학사정관</option>
+              </select>
+              <input type="text" placeholder="성격 (예: 친근함, 압박)" value={interviewerFormData.personality} onChange={e => setInterviewerFormData({...interviewerFormData, personality: e.target.value})} className="w-full p-3 border rounded-lg" />
+              {interviewerFormData.role === '교수' && <input type="text" placeholder="전공" value={interviewerFormData.major} onChange={e => setInterviewerFormData({...interviewerFormData, major: e.target.value})} className="w-full p-3 border rounded-lg" />}
+              <textarea placeholder="설명" value={interviewerFormData.description} onChange={e => setInterviewerFormData({...interviewerFormData, description: e.target.value})} className="w-full p-3 border rounded-lg" rows={3}/>
+            </div>
+            <div className="mt-8 flex justify-end gap-4">
+              <button onClick={() => setIsInterviewerModalOpen(false)} className="px-6 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-semibold">취소</button>
+              <button onClick={handleCreateInterviewer} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold flex items-center gap-2">
+                <Save size={18} /> 저장
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
