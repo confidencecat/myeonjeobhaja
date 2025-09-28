@@ -73,17 +73,17 @@ export default function SignUpPage() {
     setSuccess('')
     
     try {
-      const { error, isExistingUser } = await signUp(formData.email, formData.password, formData.name)
+      const { error, isExistingUser, confirmationSent } = await signUp(formData.email, formData.password, formData.name)
       
       if (error) {
         setError(`회원가입 중 오류가 발생했습니다: ${error.message}`)
       } else if (isExistingUser) {
-        setError('이미 가입된 이메일입니다. 로그인을 시도하거나 다른 이메일을 사용해주세요.')
-      } else {
-        setSuccess('회원가입 요청이 완료되었습니다. 이메일을 확인하여 계정을 활성화해주세요.')
+        setError('이미 가입하여 인증까지 완료된 이메일입니다. 로그인을 시도해주세요.')
+      } else if (confirmationSent) {
+        setSuccess('회원가입 요청이 완료되었습니다. 이메일을 확인하여 계정을 활성화해주세요. (이미 가입을 시도한 경우, 확인 메일이 다시 발송됩니다.)')
         setTimeout(() => {
           navigate('/login')
-        }, 3000)
+        }, 5000) // 메시지를 읽을 수 있도록 시간 연장
       }
     } catch (err) {
       setError('회원가입 중 예기치 않은 오류가 발생했습니다.')

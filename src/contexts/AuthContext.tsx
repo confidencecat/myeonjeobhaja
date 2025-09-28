@@ -6,7 +6,7 @@ interface AuthContextType {
   user: User | null
   session: Session | null
   loading: boolean
-  signUp: (email: string, password: string, name: string) => Promise<{ error: any; isExistingUser: boolean }>
+  signUp: (email: string, password: string, name: string) => Promise<{ error: any; isExistingUser: boolean; confirmationSent: boolean }>
   signIn: (email: string, password: string) => Promise<{ error: any }>
   signOut: () => Promise<{ error: any }>
 }
@@ -22,15 +22,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // 초기 세션 상태 확인
     const getSession = async () => {
       try {
-        console.log('AuthContext: 초기 세션 확인 중...')
         const { data: { session } } = await supabase.auth.getSession()
-        console.log('AuthContext: 초기 세션:', session)
         setSession(session)
         setUser(session?.user ?? null)
-        setLoading(false)
-        console.log('AuthContext: 로딩 완료')
       } catch (error) {
         console.error('AuthContext: Error getting session:', error)
+      } finally {
         setLoading(false)
       }
     }
@@ -41,10 +38,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      console.log('AuthContext: Auth 상태 변화:', _event, session)
       setSession(session);
       setUser(session?.user ?? null);
-      setLoading(false);
     });
 
     return () => {
@@ -53,7 +48,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signUp = async (email: string, password: string, name: string) => {
-    console.log('Supabase signUp 함수 호출 시작:', { email, name });
     const { data, error } = await supabase.auth.signUp({
       email,
       password,
@@ -64,16 +58,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       },
     });
 
-    console.log('Supabase signUp 결과:', { data, error });
     if (error) {
-      console.error('Supabase signUp 오류:', error);
-      return { error, isExistingUser: false };
+      return { error, isExistingUser: false, confirmationSent: false };
     }
-    
-    const isExistingUser = data.user?.identities?.length !== 0;
-    console.log('기존 사용자인가?:', isExistingUser);
 
-    return { error: null, isExistingUser };
+    // 시나리오 분석:
+    // 1. 새로운 유저: data.user가 있고, data.session은 null (이메일 인증 필요)
+    // 2. 이미 인증된 유저: data.user가 있고, data.session도 있음
+    // 3. 미인증 유저가 다시 가입: data.user가 있고, data.session은 null
+    
+    const isExistingUser = !!data.session; // 세션이 있다는 것은 이미 인증된 사용자라는 의미
+    const confirmationSent = !!data.user && !data.session; // 사용자는 생성됐지만 세션이 없다면 확인 메일이 발송된 것
+
+    return { error: null, isExistingUser, confirmationSent };
   };
 
   const signIn = async (email: string, password: string) => {
