@@ -9,6 +9,7 @@ import Header from './components/Header'
 import ProtectedRoute from './components/ProtectedRoute'
 import ProfileSetupPage from './pages/ProfileSetupPage'
 import { AuthProvider } from './contexts/AuthContext'
+import ProfileCompleteRoute from './components/ProfileCompleteRoute'
 import './App.css'
 
 function App() {
@@ -36,7 +37,9 @@ function App() {
                 path="/setup" 
                 element={
                   <ProtectedRoute>
-                    <InterviewSetupPage />
+                    <ProfileCompleteRoute>
+                      <InterviewSetupPage />
+                    </ProfileCompleteRoute>
                   </ProtectedRoute>
                 } 
               />

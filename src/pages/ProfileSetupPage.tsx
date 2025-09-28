@@ -212,7 +212,8 @@ export default function ProfileSetupPage() {
 
       {/* 생기부 활동 목록 */}
       <div>
-        <h2 className="text-2xl font-semibold mb-4">저장된 활동 목록</h2>
+        <h2 className="text-2xl font-semibold mb-2">저장된 활동 목록</h2>
+        <p className="text-sm text-gray-600 mb-4">다음 설정을 진행하려면 최소 1개 이상의 활동을 추가해야 합니다.</p>
         <div className="space-y-4">
           {schoolRecords.length > 0 ? (
             schoolRecords.map(record => (
@@ -242,7 +243,8 @@ export default function ProfileSetupPage() {
       <div className="fixed bottom-8 right-8">
         <button 
           onClick={() => navigate('/setup')}
-          className="px-6 py-3 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-transform hover:scale-105 flex items-center gap-2"
+          disabled={schoolRecords.length < 1}
+          className="px-6 py-3 bg-blue-600 text-white rounded-full shadow-lg hover:bg-blue-700 transition-transform hover:scale-105 flex items-center gap-2 disabled:bg-gray-400 disabled:cursor-not-allowed disabled:transform-none"
         >
           다음 설정 <ArrowRight size={20} />
         </button>

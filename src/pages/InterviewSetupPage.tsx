@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { 
   Settings, Users, Edit, Trash2, Save, X, ChevronRight, User, GraduationCap, 
-  Plus, MoreVertical, Clock, Target, BarChart3, Loader2, CheckCircle, ArrowLeft 
+  Plus, MoreVertical, Clock, Target, BarChart3, Loader2, CheckCircle, ArrowLeft, Eye
 } from 'lucide-react';
 
 // --- 타입 정의 ---
@@ -18,6 +18,11 @@ type EvaluationCriteria = {
   selected: boolean; is_custom?: boolean; evaluation_method?: string;
   portfolio_evaluation?: string; interview_evaluation?: string;
 };
+type ModalState = {
+  isOpen: boolean;
+  mode: 'view' | 'create' | 'edit';
+  data: Interviewer | null;
+}
 
 // --- 상수 정의 ---
 const DEFAULT_INTERVIEWERS: Interviewer[] = [
@@ -56,9 +61,8 @@ export default function InterviewSetupPage() {
   const [questionStyle, setQuestionStyle] = useState('밝은 격려형');
   const [evaluationCriteria, setEvaluationCriteria] = useState<EvaluationCriteria[]>(DEFAULT_CRITERIA);
 
-  const [isInterviewerModalOpen, setIsInterviewerModalOpen] = useState(false);
-  const [editingInterviewer, setEditingInterviewer] = useState<Interviewer | null>(null);
-  const [interviewerFormData, setInterviewerFormData] = useState<Omit<Interviewer, 'id' | 'is_custom'>>({ name: '', role: '교수', personality: '', description: '', major: '' });
+  const [modalState, setModalState] = useState<ModalState>({ isOpen: false, mode: 'create', data: null });
+  const [interviewerFormData, setInterviewerFormData] = useState<Partial<Interviewer>>({});
 
   const fetchData = useCallback(async () => {
     if (!user) { setLoading(false); return; }
@@ -102,23 +106,44 @@ export default function InterviewSetupPage() {
     });
   };
 
-  const handleCreateInterviewer = async () => {
-    if (!user || !interviewerFormData.name) return;
-    const dataToInsert: any = {
-      user_id: user.id, is_custom: true, name: interviewerFormData.name,
-      role: interviewerFormData.role, personality: interviewerFormData.personality,
-      description: interviewerFormData.description,
-    };
-    if (interviewerFormData.role === '교수') {
-      dataToInsert.major = interviewerFormData.major;
-    }
-    const { data, error } = await supabase.from('interviewers').insert(dataToInsert).select().single();
-    if (error) {
-      setError('면접관 생성 실패: ' + error.message);
-    } else if (data) {
-      await fetchData();
-      setIsInterviewerModalOpen(false);
+  const handleOpenModal = (mode: 'view' | 'create' | 'edit', interviewer: Interviewer | null = null) => {
+    setModalState({ isOpen: true, mode, data: interviewer });
+    if (mode === 'create') {
       setInterviewerFormData({ name: '', role: '교수', personality: '', description: '', major: '' });
+    } else if (interviewer) {
+      setInterviewerFormData(interviewer);
+    }
+  };
+
+  const handleCloseModal = () => {
+    setModalState({ isOpen: false, mode: 'create', data: null });
+  };
+
+  const handleSaveInterviewer = async () => {
+    if (!user) return;
+    const isEditMode = modalState.mode === 'edit';
+    const { id, ...formData } = interviewerFormData;
+    const dataToSave = { ...formData, user_id: user.id, is_custom: true };
+
+    const { error } = isEditMode
+      ? await supabase.from('interviewers').update(dataToSave).eq('id', id)
+      : await supabase.from('interviewers').insert(dataToSave);
+
+    if (error) {
+      setError(`면접관 ${isEditMode ? '수정' : '생성'} 실패: ` + error.message);
+    } else {
+      await fetchData();
+      handleCloseModal();
+    }
+  };
+
+  const handleDeleteInterviewer = async (interviewerId: string) => {
+    if (!user || !confirm('정말로 이 면접관을 삭제하시겠습니까?')) return;
+    const { error } = await supabase.from('interviewers').delete().eq('id', interviewerId);
+    if (error) {
+      setError('면접관 삭제 실패: ' + error.message);
+    } else {
+      await fetchData();
     }
   };
 
@@ -150,18 +175,18 @@ export default function InterviewSetupPage() {
               <h2 className="text-3xl font-bold">면접관 선택</h2>
               <p className="text-gray-600 mt-2">면접을 진행할 입학사정관 1명과 교수 2명을 선택해주세요.</p>
             </div>
-            <button onClick={() => setIsInterviewerModalOpen(true)} className="px-4 py-2 bg-indigo-600 text-white rounded-lg flex items-center gap-2 hover:bg-indigo-700 transition-colors"><Plus size={18}/> 면접관 추가</button>
+            <button onClick={() => handleOpenModal('create')} className="px-4 py-2 bg-indigo-600 text-white rounded-lg flex items-center gap-2 hover:bg-indigo-700 transition-colors"><Plus size={18}/> 면접관 추가</button>
           </div>
           <h3 className="text-2xl font-semibold text-gray-800 mb-4">입학사정관 (1명 선택)</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
             {allInterviewers.filter(i => i.role === '입학사정관').map(interviewer => (
-              <InterviewerCard key={interviewer.id} interviewer={interviewer} isSelected={selectedOfficer === interviewer.id} onSelect={() => handleOfficerSelect(interviewer.id)} />
+              <InterviewerCard key={interviewer.id} interviewer={interviewer} isSelected={selectedOfficer === interviewer.id} onSelect={() => handleOfficerSelect(interviewer.id)} onAction={handleOpenModal} onDelete={handleDeleteInterviewer} />
             ))}
           </div>
           <h3 className="text-2xl font-semibold text-gray-800 mb-4">교수 (2명 선택)</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {allInterviewers.filter(i => i.role === '교수').map(interviewer => (
-              <InterviewerCard key={interviewer.id} interviewer={interviewer} isSelected={selectedProfessors.includes(interviewer.id)} onSelect={() => handleProfessorSelect(interviewer.id)} />
+              <InterviewerCard key={interviewer.id} interviewer={interviewer} isSelected={selectedProfessors.includes(interviewer.id)} onSelect={() => handleProfessorSelect(interviewer.id)} onAction={handleOpenModal} onDelete={handleDeleteInterviewer} />
             ))}
           </div>
         </div>
@@ -184,28 +209,36 @@ export default function InterviewSetupPage() {
         )}
       </div>
 
-      {isInterviewerModalOpen && (
+      {modalState.isOpen && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-lg">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-2xl font-bold">{editingInterviewer ? '면접관 수정' : '새 면접관 추가'}</h3>
-              <button onClick={() => setIsInterviewerModalOpen(false)} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full"><X size={24} /></button>
+              <h3 className="text-2xl font-bold">
+                {modalState.mode === 'view' && '면접관 정보'}
+                {modalState.mode === 'create' && '새 면접관 추가'}
+                {modalState.mode === 'edit' && '면접관 수정'}
+              </h3>
+              <button onClick={handleCloseModal} className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full"><X size={24} /></button>
             </div>
             <div className="space-y-4">
-              <input type="text" placeholder="이름" value={interviewerFormData.name} onChange={e => setInterviewerFormData({...interviewerFormData, name: e.target.value})} className="w-full p-3 border rounded-lg" />
-              <select value={interviewerFormData.role} onChange={e => setInterviewerFormData({...interviewerFormData, role: e.target.value as InterviewerRole})} className="w-full p-3 border rounded-lg">
+              <input type="text" placeholder="이름" value={interviewerFormData.name || ''} onChange={e => setInterviewerFormData({...interviewerFormData, name: e.target.value})} className="w-full p-3 border rounded-lg" disabled={modalState.mode === 'view'} />
+              <select value={interviewerFormData.role || '교수'} onChange={e => setInterviewerFormData({...interviewerFormData, role: e.target.value as InterviewerRole})} className="w-full p-3 border rounded-lg" disabled={modalState.mode === 'view'}>
                 <option value="교수">교수</option>
                 <option value="입학사정관">입학사정관</option>
               </select>
-              <input type="text" placeholder="성격 (예: 친근함, 압박)" value={interviewerFormData.personality} onChange={e => setInterviewerFormData({...interviewerFormData, personality: e.target.value})} className="w-full p-3 border rounded-lg" />
-              {interviewerFormData.role === '교수' && <input type="text" placeholder="전공" value={interviewerFormData.major} onChange={e => setInterviewerFormData({...interviewerFormData, major: e.target.value})} className="w-full p-3 border rounded-lg" />}
-              <textarea placeholder="설명" value={interviewerFormData.description} onChange={e => setInterviewerFormData({...interviewerFormData, description: e.target.value})} className="w-full p-3 border rounded-lg" rows={3}/>
+              <input type="text" placeholder="성격 (예: 친근함, 압박)" value={interviewerFormData.personality || ''} onChange={e => setInterviewerFormData({...interviewerFormData, personality: e.target.value})} className="w-full p-3 border rounded-lg" disabled={modalState.mode === 'view'} />
+              {interviewerFormData.role === '교수' && <input type="text" placeholder="전공" value={interviewerFormData.major || ''} onChange={e => setInterviewerFormData({...interviewerFormData, major: e.target.value})} className="w-full p-3 border rounded-lg" disabled={modalState.mode === 'view'} />}
+              <textarea placeholder="설명" value={interviewerFormData.description || ''} onChange={e => setInterviewerFormData({...interviewerFormData, description: e.target.value})} className="w-full p-3 border rounded-lg" rows={3} disabled={modalState.mode === 'view'}/>
             </div>
             <div className="mt-8 flex justify-end gap-4">
-              <button onClick={() => setIsInterviewerModalOpen(false)} className="px-6 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-semibold">취소</button>
-              <button onClick={handleCreateInterviewer} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold flex items-center gap-2">
-                <Save size={18} /> 저장
+              <button onClick={handleCloseModal} className="px-6 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 font-semibold">
+                {modalState.mode === 'view' ? '닫기' : '취소'}
               </button>
+              {modalState.mode !== 'view' && (
+                <button onClick={handleSaveInterviewer} className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold flex items-center gap-2">
+                  <Save size={18} /> 저장
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -214,10 +247,23 @@ export default function InterviewSetupPage() {
   );
 }
 
-const InterviewerCard = ({ interviewer, isSelected, onSelect }: { interviewer: Interviewer, isSelected: boolean, onSelect: () => void }) => (
+const InterviewerCard = ({ interviewer, isSelected, onSelect, onAction, onDelete }: { 
+  interviewer: Interviewer, isSelected: boolean, onSelect: () => void, 
+  onAction: (mode: 'view' | 'edit', data: Interviewer) => void,
+  onDelete: (id: string) => void
+}) => (
     <div onClick={onSelect} className={`p-6 border-2 rounded-xl cursor-pointer relative transition-all duration-300 ${isSelected ? 'border-blue-500 bg-blue-50 shadow-lg' : 'border-gray-200 bg-white hover:border-blue-400 hover:shadow-md'}`}>
-        {isSelected && <CheckCircle className="absolute top-4 right-4 text-blue-600 h-6 w-6" />}
-        <div className="flex items-center gap-4">
+        <div className="absolute top-3 right-3 flex gap-1">
+            <button onClick={(e) => { e.stopPropagation(); onAction('view', interviewer); }} className="p-1.5 text-gray-500 hover:text-gray-800 hover:bg-gray-100 rounded-full"><Eye size={16}/></button>
+            {interviewer.is_custom && (
+              <>
+                <button onClick={(e) => { e.stopPropagation(); onAction('edit', interviewer); }} className="p-1.5 text-gray-500 hover:text-blue-600 hover:bg-blue-100 rounded-full"><Edit size={16}/></button>
+                <button onClick={(e) => { e.stopPropagation(); onDelete(interviewer.id); }} className="p-1.5 text-gray-500 hover:text-red-600 hover:bg-red-100 rounded-full"><Trash2 size={16}/></button>
+              </>
+            )}
+        </div>
+        {isSelected && <CheckCircle className="absolute top-4 left-4 text-blue-600 h-5 w-5" />}
+        <div className="flex items-center gap-4 mt-4">
             <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center flex-shrink-0">
                 {interviewer.role === '입학사정관' ? <User size={32} className="text-gray-600"/> : <GraduationCap size={32} className="text-gray-600"/>}
             </div>
@@ -227,6 +273,6 @@ const InterviewerCard = ({ interviewer, isSelected, onSelect }: { interviewer: I
             </div>
         </div>
         <p className="text-sm text-gray-700 mt-4">{interviewer.description}</p>
-        {interviewer.is_custom && <span className="absolute bottom-3 left-4 text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-semibold">사용자 생성</span>}
+        {interviewer.is_custom && <span className="absolute bottom-3 right-3 text-xs bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-semibold">사용자 생성</span>}
     </div>
 );
