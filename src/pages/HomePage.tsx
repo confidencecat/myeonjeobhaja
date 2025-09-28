@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Play, Users, BarChart3, ChevronRight, BookOpen, Target, Zap, LogOut, UserCircle } from 'lucide-react'
+import { Play, Users, BarChart3, ChevronRight, BookOpen, Target, Zap, LogOut, UserCircle, Loader2 } from 'lucide-react'
 import { useAuth } from '../contexts/AuthContext'
 
 export default function HomePage() {
   const navigate = useNavigate()
   const { user, signOut, loading } = useAuth()
   const [hoveredFeature, setHoveredFeature] = useState<number | null>(null)
+
+  console.log('HomePage: 렌더링 중...', { user: !!user, loading })
 
   const handleSignOut = async () => {
     const { error } = await signOut()
@@ -16,6 +18,21 @@ export default function HomePage() {
       navigate('/')
     }
   }
+
+  // 로딩 상태일 때 로딩 화면 표시
+  if (loading) {
+    console.log('HomePage: 로딩 상태 표시')
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-purple-50">
+        <div className="flex flex-col items-center">
+          <Loader2 className="animate-spin h-12 w-12 text-blue-600" />
+          <p className="mt-4 text-lg text-gray-600">로딩 중...</p>
+        </div>
+      </div>
+    )
+  }
+
+  console.log('HomePage: 메인 컨텐츠 렌더링')
 
   const features = [
     {
@@ -118,7 +135,7 @@ export default function HomePage() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <button
-                onClick={() => navigate('/setup')}
+                onClick={() => navigate('/profile')}
                 className="gradient-button text-white px-8 py-4 rounded-full text-lg font-semibold flex items-center justify-center gap-3 hover:shadow-2xl"
               >
                 <Play className="w-5 h-5" />

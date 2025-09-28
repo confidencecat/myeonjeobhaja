@@ -19,10 +19,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    setLoading(true);
+    // 초기 세션 상태 확인
+    const getSession = async () => {
+      try {
+        console.log('AuthContext: 초기 세션 확인 중...')
+        const { data: { session } } = await supabase.auth.getSession()
+        console.log('AuthContext: 초기 세션:', session)
+        setSession(session)
+        setUser(session?.user ?? null)
+        setLoading(false)
+        console.log('AuthContext: 로딩 완료')
+      } catch (error) {
+        console.error('AuthContext: Error getting session:', error)
+        setLoading(false)
+      }
+    }
+
+    getSession()
+
+    // Auth 상태 변화 구독
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
+      console.log('AuthContext: Auth 상태 변화:', _event, session)
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);

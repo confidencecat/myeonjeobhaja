@@ -24,7 +24,7 @@ export default function Header() {
               면접하자
             </Link>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-6">
             {loading ? (
               <div className="flex items-center gap-4 animate-pulse">
                 <div className="w-32 h-8 bg-gray-200 rounded-md"></div>
@@ -32,6 +32,12 @@ export default function Header() {
               </div>
             ) : user ? (
               <>
+                <Link to="/profile" className="text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors">
+                  프로필 설정
+                </Link>
+                <Link to="/setup" className="text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors">
+                  면접 설정
+                </Link>
                 <div className="flex items-center gap-2">
                   <UserCircle className="w-5 h-5 text-gray-600" />
                   <span className="text-sm font-medium text-gray-700 hidden sm:block">
@@ -40,27 +46,24 @@ export default function Header() {
                 </div>
                 <button
                   onClick={handleSignOut}
-                  className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+                  className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"
                 >
                   <LogOut className="w-4 h-4" />
-                  <span>로그아웃</span>
                 </button>
               </>
             ) : (
               <>
                 <Link
                   to="/login"
-                  className="flex items-center gap-2 px-3 py-2 text-sm font-medium text-gray-700 rounded-md hover:bg-gray-100 transition-colors"
+                  className="text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors"
                 >
-                  <LogIn className="w-4 h-4" />
-                  <span>로그인</span>
+                  로그인
                 </Link>
                 <Link
                   to="/signup"
-                  className="hidden sm:flex items-center gap-2 px-3 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 transition-colors"
+                  className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-full hover:bg-blue-700 transition-colors"
                 >
-                  <UserPlus className="w-4 h-4" />
-                  <span>회원가입</span>
+                  회원가입
                 </Link>
               </>
             )}
