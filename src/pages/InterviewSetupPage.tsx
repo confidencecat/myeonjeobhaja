@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../contexts/AuthContext';
 import { 
   Settings, Users, Edit, Trash2, Save, X, ChevronRight, User, GraduationCap, 
-  Plus, Clock, BarChart3, Loader2, CheckCircle, ArrowLeft, Eye, Info
+  Plus, Clock, BarChart3, Loader2, CheckCircle, ArrowLeft, Eye, Info, SlidersHorizontal, BrainCircuit, Mic, Smile, FileText, Video
 } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -45,6 +45,31 @@ type FactorModalState = {
   mode: 'view' | 'create' | 'edit';
   data: EvaluationFactor | null;
 }
+
+type AdvancedSettings = {
+  preset: string;
+  question_depth: string;
+  question_method: string;
+  allow_follow_up: boolean;
+  max_follow_up_depth: number;
+  time_distribution: string;
+  interviewer_interaction: boolean;
+  question_order: string;
+  answer_time_limit: string;
+  retry_opportunity: boolean;
+  hint_level: string;
+  pressure_level: string;
+  encouragement_frequency: string;
+  non_verbal_reaction: string;
+  evaluation_timing: string;
+  major_question_ratio: number;
+  include_current_events: boolean;
+  personal_experience_ratio: number;
+  detailed_recording: boolean;
+  answer_analysis: boolean;
+  generate_report: boolean;
+};
+
 
 // --- 상수 정의 ---
 const DEFAULT_INTERVIEWERS: Interviewer[] = [
@@ -97,6 +122,63 @@ const DEFAULT_FACTORS: EvaluationFactor[] = [
 
 const DURATION_OPTIONS = [3, 5, 7, 10, 15, 20];
 
+const PRESETS: { [key: string]: Partial<AdvancedSettings> } = {
+  beginner: {
+    preset: 'beginner',
+    question_depth: 'surface',
+    question_method: 'direct',
+    allow_follow_up: false,
+    pressure_level: 'comfortable',
+    encouragement_frequency: 'frequent',
+    hint_level: 'high',
+  },
+  standard: {
+    preset: 'standard',
+    question_depth: 'in-depth',
+    question_method: 'direct',
+    allow_follow_up: true,
+    max_follow_up_depth: 2,
+    pressure_level: 'standard',
+    encouragement_frequency: 'standard',
+    hint_level: 'standard',
+  },
+  advanced: {
+    preset: 'advanced',
+    question_depth: 'professional',
+    question_method: 'open',
+    allow_follow_up: true,
+    max_follow_up_depth: 4,
+    pressure_level: 'tense',
+    encouragement_frequency: 'rare',
+    hint_level: 'low',
+  },
+};
+
+
+const DEFAULT_ADVANCED_SETTINGS: AdvancedSettings = {
+  preset: 'standard',
+  question_depth: 'in-depth',
+  question_method: 'direct',
+  allow_follow_up: true,
+  max_follow_up_depth: 2,
+  time_distribution: 'even',
+  interviewer_interaction: false,
+  question_order: 'sequential',
+  answer_time_limit: 'flexible',
+  retry_opportunity: true,
+  hint_level: 'standard',
+  pressure_level: 'standard',
+  encouragement_frequency: 'standard',
+  non_verbal_reaction: 'standard',
+  evaluation_timing: 'after',
+  major_question_ratio: 50,
+  include_current_events: true,
+  personal_experience_ratio: 50,
+  detailed_recording: true,
+  answer_analysis: true,
+  generate_report: true,
+};
+
 // --- 메인 컴포넌트 ---
 export default function InterviewSetupPage() {
   const { user } = useAuth();
@@ -115,11 +197,32 @@ export default function InterviewSetupPage() {
   // Step 2 State
   const [duration, setDuration] = useState(10);
   const [evaluationFactors, setEvaluationFactors] = useState<EvaluationFactor[]>(DEFAULT_FACTORS);
+  const [advancedSettings, setAdvancedSettings] = useState<AdvancedSettings>(DEFAULT_ADVANCED_SETTINGS);
 
   // Modals State
   const [interviewerModal, setInterviewerModal] = useState<InterviewerModalState>({ isOpen: false, mode: 'create', data: null });
   const [interviewerFormData, setInterviewerFormData] = useState<Partial<Interviewer>>({});
   const [factorModal, setFactorModal] = useState<FactorModalState>({ isOpen: false, mode: 'create', data: null });
+
+  const handleAdvancedSettingChange = (key: keyof AdvancedSettings, value: any) => {
+    setAdvancedSettings(prev => {
+      const newState = { ...prev, [key]: value, preset: 'custom' };
+      if (key === 'major_question_ratio') {
+        newState.personal_experience_ratio = 100 - value;
+      }
+      if (key === 'personal_experience_ratio') {
+        newState.major_question_ratio = 100 - value;
+      }
+      return newState;
+    });
+  };
+
+  const handlePresetChange = (presetName: string) => {
+    setAdvancedSettings(prev => ({
+      ...prev,
+      ...PRESETS[presetName],
+    }));
+  };
 
   const fetchData = useCallback(async () => {
     if (!user) { setLoading(false); return; }
@@ -142,7 +245,7 @@ export default function InterviewSetupPage() {
         setSelectedOfficer(setup.selected_interviewer_ids?.[0] || null);
         setSelectedProfessors(setup.selected_interviewer_ids?.slice(1) || []);
         setDuration(setup.duration || 10);
-        // TODO: Load selected factors and weights from setup
+        setAdvancedSettings({ ...DEFAULT_ADVANCED_SETTINGS, ...setup });
       }
     } catch (err: any) {
       setError('데이터 로딩 실패: ' + err.message);
@@ -252,14 +355,16 @@ export default function InterviewSetupPage() {
     setError('');
     const selectedFactors = evaluationFactors.filter(f => f.selected);
     const setupData = {
+      id: user.id,
       user_id: user.id,
       selected_interviewer_ids: [selectedOfficer, ...selectedProfessors],
       duration,
       evaluation_factors: selectedFactors.map(({ id, weight }) => ({ id, weight })),
+      ...advancedSettings
     };
 
     try {
-      const { error: setupError } = await supabase.from('interview_setups').upsert({ ...setupData, id: user.id });
+      const { error: setupError } = await supabase.from('interview_setups').upsert(setupData);
       if (setupError) throw setupError;
       navigate('/interview');
     } catch (err: any) {
@@ -272,7 +377,7 @@ export default function InterviewSetupPage() {
   if (loading) return <div className="flex justify-center items-center h-screen"><Loader2 className="animate-spin h-8 w-8 text-blue-600" /></div>;
 
   return (
-    <div className="container mx-auto py-8 px-4 max-w-6xl">
+    <div className="container mx-auto py-8 px-4 max-w-7xl">
       <div className="flex justify-center items-center mb-12">
         <div className="flex items-center">
           <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-bold ${step === 1 ? 'bg-blue-600' : 'bg-gray-300'}`}>1</div>
@@ -312,41 +417,196 @@ export default function InterviewSetupPage() {
       )}
 
       {step === 2 && (
-        <div className="grid lg:grid-cols-2 gap-8">
-          <div className="space-y-6">
-            <div className="p-6 border rounded-xl bg-white shadow-sm">
-              <h3 className="font-bold text-lg flex items-center gap-2"><Clock size={20} className="text-blue-600"/>면접 시간 설정</h3>
-              <p className="text-sm text-gray-500 mb-4">면접 진행 시간을 선택하세요.</p>
-              <select value={duration} onChange={e => setDuration(Number(e.target.value))} className="w-full p-3 border rounded-lg">
-                {DURATION_OPTIONS.map(time => <option key={time} value={time}>{time}분</option>)}
-              </select>
-            </div>
-          </div>
-          <div className="p-6 border rounded-xl bg-white shadow-sm row-span-2">
-            <div className="flex justify-between items-center mb-2">
-              <h3 className="font-bold text-lg flex items-center gap-2"><BarChart3 size={20} className="text-green-600"/>평가 요소 및 비율 설정</h3>
-              <button onClick={() => handleOpenFactorModal('create', null)} className="px-3 py-1.5 text-sm bg-gray-100 rounded-md flex items-center gap-1 hover:bg-gray-200"><Plus size={16}/>요소 추가</button>
-            </div>
-            <p className="text-sm text-gray-500 mb-4">평가할 요소를 선택하고 비율을 설정하세요 (총합 100%)</p>
-            <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2">
-              {evaluationFactors.map(factor => (
-                <EvaluationFactorItem 
-                  key={factor.id}
-                  factor={factor}
-                  onToggle={handleFactorToggle}
-                  onWeightChange={handleWeightChange}
-                  onViewDetails={() => handleOpenFactorModal('view', factor)}
-                  onEdit={() => handleOpenFactorModal('edit', factor)}
-                  onDelete={handleDeleteFactor}
-                />
-              ))}
-            </div>
-            <div className="mt-4 pt-4 border-t">
-              <div className="flex justify-between items-center font-bold text-lg">
-                <span>총 비율:</span>
-                <span className={getTotalWeight() === 100 ? 'text-green-600' : 'text-red-500'}>{getTotalWeight()}%</span>
+        <div className="space-y-8">
+          <div className="grid lg:grid-cols-3 gap-8">
+            {/* Left Column */}
+            <div className="lg:col-span-2 space-y-6">
+              <div className="p-6 border rounded-xl bg-white shadow-sm">
+                <h3 className="font-bold text-lg flex items-center gap-2"><SlidersHorizontal size={20} className="text-blue-600"/>면접 프리셋</h3>
+                <div className="flex items-center gap-2 rounded-lg p-1 bg-gray-100 mt-4">
+                  <button onClick={() => handlePresetChange('beginner')} className={`flex-1 px-3 py-1 text-sm rounded-md transition-colors ${advancedSettings.preset === 'beginner' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-600 hover:bg-gray-200'}`}>초보자용</button>
+                  <button onClick={() => handlePresetChange('standard')} className={`flex-1 px-3 py-1 text-sm rounded-md transition-colors ${advancedSettings.preset === 'standard' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-600 hover:bg-gray-200'}`}>표준</button>
+                  <button onClick={() => handlePresetChange('advanced')} className={`flex-1 px-3 py-1 text-sm rounded-md transition-colors ${advancedSettings.preset === 'advanced' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-600 hover:bg-gray-200'}`}>고급</button>
+                  <button onClick={() => handleAdvancedSettingChange('preset', 'custom')} className={`flex-1 px-3 py-1 text-sm rounded-md transition-colors ${advancedSettings.preset === 'custom' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-600 hover:bg-gray-200'}`}>커스텀</button>
+                </div>
+              </div>
+              <div className="p-6 border rounded-xl bg-white shadow-sm">
+                <h3 className="font-bold text-lg flex items-center gap-2"><BrainCircuit size={20} className="text-purple-600"/>질문 스타일 설정</h3>
+                <div className="space-y-4 mt-4">
+                  <SettingRadioGroup
+                    label="질문 깊이"
+                    value={advancedSettings.question_depth}
+                    onChange={(e) => handleAdvancedSettingChange('question_depth', e.target.value)}
+                    options={[
+                      { value: 'surface', label: '표면적' },
+                      { value: 'in-depth', label: '심화' },
+                      { value: 'professional', label: '전문적' },
+                    ]}
+                  />
+                  <SettingRadioGroup
+                    label="질문 방식"
+                    value={advancedSettings.question_method}
+                    onChange={(e) => handleAdvancedSettingChange('question_method', e.target.value)}
+                    options={[
+                      { value: 'direct', label: '직접적' },
+                      { value: 'leading', label: '유도적' },
+                      { value: 'open', label: '개방적' },
+                    ]}
+                  />
+                  <SettingToggle
+                    label="후속 질문 허용"
+                    checked={advancedSettings.allow_follow_up}
+                    onChange={(e) => handleAdvancedSettingChange('allow_follow_up', e.target.checked)}
+                  />
+                  {advancedSettings.allow_follow_up && (
+                    <SettingSlider
+                      label="최대 후속 질문 깊이"
+                      value={advancedSettings.max_follow_up_depth}
+                      onChange={(e) => handleAdvancedSettingChange('max_follow_up_depth', parseInt(e.target.value))}
+                      min={1} max={5} step={1}
+                      displayValue={`${advancedSettings.max_follow_up_depth}단계`}
+                    />
+                  )}
+                </div>
+              </div>
+               <div className="p-6 border rounded-xl bg-white shadow-sm">
+                <h3 className="font-bold text-lg flex items-center gap-2"><Mic size={20} className="text-teal-600"/>면접 진행 방식</h3>
+                <div className="space-y-4 mt-4">
+                    <SettingRadioGroup
+                      label="질문 시간 분배"
+                      value={advancedSettings.time_distribution}
+                      onChange={(e) => handleAdvancedSettingChange('time_distribution', e.target.value)}
+                      options={[
+                        { value: 'even', label: '균등' },
+                        { value: 'weighted', label: '가중치' },
+                      ]}
+                    />
+                    <SettingToggle
+                      label="면접관 상호작용 허용"
+                      checked={advancedSettings.interviewer_interaction}
+                      onChange={(e) => handleAdvancedSettingChange('interviewer_interaction', e.target.checked)}
+                    />
+                    <SettingRadioGroup
+                      label="질문 순서"
+                      value={advancedSettings.question_order}
+                      onChange={(e) => handleAdvancedSettingChange('question_order', e.target.value)}
+                      options={[
+                        { value: 'sequential', label: '순차적' },
+                        { value: 'random', label: '랜덤' },
+                        { value: 'adaptive', label: '적응형' },
+                      ]}
+                    />
+                  </div>
               </div>
             </div>
+
+            {/* Right Column */}
+            <div className="lg:col-span-1 space-y-6">
+              <div className="p-6 border rounded-xl bg-white shadow-sm">
+                <h3 className="font-bold text-lg flex items-center gap-2"><Clock size={20} className="text-blue-600"/>면접 시간 설정</h3>
+                <p className="text-sm text-gray-500 mb-4">면접 진행 시간을 선택하세요.</p>
+                <select value={duration} onChange={e => setDuration(Number(e.target.value))} className="w-full p-3 border rounded-lg">
+                  {DURATION_OPTIONS.map(time => <option key={time} value={time}>{time}분</option>)}
+                </select>
+              </div>
+              <div className="p-6 border rounded-xl bg-white shadow-sm">
+                <div className="flex justify-between items-center mb-2">
+                  <h3 className="font-bold text-lg flex items-center gap-2"><BarChart3 size={20} className="text-green-600"/>평가 요소</h3>
+                  <button onClick={() => handleOpenFactorModal('create', null)} className="px-3 py-1.5 text-sm bg-gray-100 rounded-md flex items-center gap-1 hover:bg-gray-200"><Plus size={16}/>요소 추가</button>
+                </div>
+                <p className="text-sm text-gray-500 mb-4">총합 100%가 되도록 비율을 설정하세요.</p>
+                <div className="space-y-3 max-h-[400px] overflow-y-auto pr-2">
+                  {evaluationFactors.map(factor => (
+                    <EvaluationFactorItem 
+                      key={factor.id}
+                      factor={factor}
+                      onToggle={handleFactorToggle}
+                      onWeightChange={handleWeightChange}
+                      onViewDetails={() => handleOpenFactorModal('view', factor)}
+                      onEdit={() => handleOpenFactorModal('edit', factor)}
+                      onDelete={handleDeleteFactor}
+                    />
+                  ))}
+                </div>
+                <div className="mt-4 pt-4 border-t">
+                  <div className="flex justify-between items-center font-bold text-lg">
+                    <span>총 비율:</span>
+                    <span className={getTotalWeight() === 100 ? 'text-green-600' : 'text-red-500'}>{getTotalWeight()}%</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div className="grid lg:grid-cols-3 gap-8">
+             <div className="p-6 border rounded-xl bg-white shadow-sm">
+                <h3 className="font-bold text-lg flex items-center gap-2"><Smile size={20} className="text-yellow-600"/>면접 분위기</h3>
+                <div className="space-y-4 mt-4">
+                    <SettingRadioGroup
+                      label="압박 수준"
+                      value={advancedSettings.pressure_level}
+                      onChange={(e) => handleAdvancedSettingChange('pressure_level', e.target.value)}
+                      options={[
+                        { value: 'comfortable', label: '편안함' },
+                        { value: 'standard', label: '적당함' },
+                        { value: 'tense', label: '긴장감' },
+                      ]}
+                    />
+                    <SettingRadioGroup
+                      label="격려 빈도"
+                      value={advancedSettings.encouragement_frequency}
+                      onChange={(e) => handleAdvancedSettingChange('encouragement_frequency', e.target.value)}
+                      options={[
+                        { value: 'frequent', label: '자주' },
+                        { value: 'standard', label: '보통' },
+                        { value: 'rare', label: '드물게' },
+                      ]}
+                    />
+                  </div>
+              </div>
+              <div className="p-6 border rounded-xl bg-white shadow-sm">
+                <h3 className="font-bold text-lg flex items-center gap-2"><FileText size={20} className="text-indigo-600"/>면접 컨텍스트</h3>
+                <div className="space-y-4 mt-4">
+                    <SettingSlider
+                      label="전공 질문 비율"
+                      value={advancedSettings.major_question_ratio}
+                      onChange={(e) => handleAdvancedSettingChange('major_question_ratio', parseInt(e.target.value))}
+                      min={0} max={100} step={10}
+                      displayValue={`${advancedSettings.major_question_ratio}%`}
+                    />
+                    <SettingSlider
+                      label="개인 경험 질문 비율"
+                      value={advancedSettings.personal_experience_ratio}
+                      onChange={(e) => handleAdvancedSettingChange('personal_experience_ratio', parseInt(e.target.value))}
+                      min={0} max={100} step={10}
+                      displayValue={`${advancedSettings.personal_experience_ratio}%`}
+                    />
+                    <SettingToggle
+                      label="시사/상식 질문 포함"
+                      checked={advancedSettings.include_current_events}
+                      onChange={(e) => handleAdvancedSettingChange('include_current_events', e.target.checked)}
+                    />
+                  </div>
+              </div>
+              <div className="p-6 border rounded-xl bg-white shadow-sm">
+                <h3 className="font-bold text-lg flex items-center gap-2"><Video size={20} className="text-red-600"/>면접 기록 및 분석</h3>
+                <div className="space-y-4 mt-4">
+                    <SettingToggle
+                      label="면접 과정 상세 기록"
+                      checked={advancedSettings.detailed_recording}
+                      onChange={(e) => handleAdvancedSettingChange('detailed_recording', e.target.checked)}
+                    />
+                    <SettingToggle
+                      label="답변 분석 및 개선점 제시"
+                      checked={advancedSettings.answer_analysis}
+                      onChange={(e) => handleAdvancedSettingChange('answer_analysis', e.target.checked)}
+                    />
+                    <SettingToggle
+                      label="면접 후 상세 리포트 생성"
+                      checked={advancedSettings.generate_report}
+                      onChange={(e) => handleAdvancedSettingChange('generate_report', e.target.checked)}
+                    />
+                  </div>
+              </div>
           </div>
         </div>
       )}
@@ -369,6 +629,52 @@ export default function InterviewSetupPage() {
 }
 
 // --- 하위 컴포넌트들 ---
+
+const SettingRadioGroup = ({ label, value, onChange, options }) => (
+  <div className="flex items-center justify-between">
+    <label className="text-sm font-medium text-gray-700">{label}</label>
+    <div className="flex items-center gap-2 rounded-lg p-1 bg-gray-100">
+      {options.map(option => (
+        <button
+          key={option.value}
+          onClick={() => onChange({ target: { value: option.value } })}
+          className={`px-3 py-1 text-sm rounded-md transition-colors ${value === option.value ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-600 hover:bg-gray-200'}`}
+        >
+          {option.label}
+        </button>
+      ))}
+    </div>
+  </div>
+);
+
+const SettingToggle = ({ label, checked, onChange }) => (
+  <div className="flex items-center justify-between">
+    <label className="text-sm font-medium text-gray-700">{label}</label>
+    <label className="relative inline-flex items-center cursor-pointer">
+      <input type="checkbox" checked={checked} onChange={onChange} className="sr-only peer" />
+      <div className="w-11 h-6 bg-gray-200 rounded-full peer peer-focus:ring-4 peer-focus:ring-blue-300 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+    </label>
+  </div>
+);
+
+const SettingSlider = ({ label, value, onChange, min, max, step, displayValue }) => (
+  <div className="flex items-center justify-between">
+    <label className="text-sm font-medium text-gray-700">{label}</label>
+    <div className="flex items-center gap-3 w-1/2">
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={onChange}
+        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer"
+      />
+      <span className="text-sm font-semibold text-blue-600 w-12 text-center">{displayValue}</span>
+    </div>
+  </div>
+);
+
 
 const InterviewerCard = ({ interviewer, isSelected, onSelect, onAction, onDelete }: { 
   interviewer: Interviewer, isSelected: boolean, onSelect: () => void, 
