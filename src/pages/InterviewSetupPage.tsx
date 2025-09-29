@@ -193,6 +193,7 @@ export default function InterviewSetupPage() {
   const [allInterviewers, setAllInterviewers] = useState<Interviewer[]>(DEFAULT_INTERVIEWERS);
   const [selectedOfficer, setSelectedOfficer] = useState<string | null>(null);
   const [selectedProfessors, setSelectedProfessors] = useState<string[]>([]);
+  const [professorSelectionWarning, setProfessorSelectionWarning] = useState('');
   
   // Step 2 State
   const [duration, setDuration] = useState(10);
@@ -260,9 +261,14 @@ export default function InterviewSetupPage() {
   const handleOfficerSelect = (id: string) => setSelectedOfficer(prev => prev === id ? null : id);
   const handleProfessorSelect = (id: string) => {
     setSelectedProfessors(prev => {
-      if (prev.includes(id)) return prev.filter(pId => pId !== id);
-      if (prev.length < 2) return [...prev, id];
-      alert('교수는 최대 2명까지 선택할 수 있습니다.');
+      if (prev.includes(id)) {
+        return prev.filter(pId => pId !== id);
+      }
+      if (prev.length < 2) {
+        return [...prev, id];
+      }
+      setProfessorSelectionWarning('교수는 최대 2명까지 선택할 수 있습니다.');
+      setTimeout(() => setProfessorSelectionWarning(''), 5000);
       return prev;
     });
   };
@@ -407,7 +413,14 @@ export default function InterviewSetupPage() {
               <InterviewerCard key={interviewer.id} interviewer={interviewer} isSelected={selectedOfficer === interviewer.id} onSelect={() => handleOfficerSelect(interviewer.id)} onAction={handleOpenInterviewerModal} onDelete={handleDeleteInterviewer} />
             ))}
           </div>
-          <h3 className="text-2xl font-semibold text-gray-800 mb-4">교수 (최대 2명 선택)</h3>
+          <div className="flex items-center mb-4">
+            <h3 className="text-2xl font-semibold text-gray-800">교수 (최대 2명 선택)</h3>
+            {professorSelectionWarning && (
+              <p className="ml-4 text-sm font-bold text-red-500 transition-opacity duration-300 ease-in-out">
+                {professorSelectionWarning}
+              </p>
+            )}
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {allInterviewers.filter(i => i.role === '교수').map(interviewer => (
               <InterviewerCard key={interviewer.id} interviewer={interviewer} isSelected={selectedProfessors.includes(interviewer.id)} onSelect={() => handleProfessorSelect(interviewer.id)} onAction={handleOpenInterviewerModal} onDelete={handleDeleteInterviewer} />

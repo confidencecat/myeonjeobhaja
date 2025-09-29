@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronLeft, ChevronRight, Settings, Clock, HelpCircle, Mic, Send, Volume2, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Settings, Clock, HelpCircle, Mic, Send, User, GraduationCap, X } from 'lucide-react';
 
 // --- Mock Data ---
 const mockInterviewers = [
-  { id: 1, name: '김미영 입학사정관', image: 'https://i.pravatar.cc/150?u=a042581f4e29026704d' },
-  { id: 2, name: '최영수 교수', image: 'https://i.pravatar.cc/150?u=a042581f4e29026705d' },
-  { id: 3, name: '박준호 입학사정관', image: 'https://i.pravatar.cc/150?u=a042581f4e29026706d' },
+  { id: 1, name: '김미영 입학사정관', role: '입학사정관' },
+  { id: 2, name: '최영수 교수', role: '교수' },
+  { id: 3, name: '박준호 입학사정관', role: '입학사정관' },
 ];
 
 const mockChatHistory = [
@@ -72,7 +72,7 @@ export default function InterviewPage() {
   };
 
   return (
-    <div className="flex h-screen bg-gray-100 font-sans overflow-hidden">
+    <div className="flex h-[calc(100vh-4rem)] bg-gray-100 font-sans overflow-hidden">
       {/* Left Sidebar: Chat */}
       <div className={`transition-all duration-300 bg-white shadow-lg flex flex-col ${isChatOpen ? 'w-80' : 'w-0'} overflow-hidden`}>
         <div className="p-4 border-b flex-shrink-0">
@@ -93,7 +93,7 @@ export default function InterviewPage() {
       </div>
 
       {/* Center Content: Interviewers & Input */}
-      <main className="flex-1 flex flex-col items-center justify-between p-6 relative">
+      <main className="flex-1 flex flex-col items-center justify-center p-6 relative gap-16">
         <button 
           onClick={() => setIsChatOpen(!isChatOpen)} 
           className="absolute top-1/2 -left-4 z-10 transform -translate-y-1/2 bg-white p-2 rounded-full shadow-md border hover:bg-gray-100"
@@ -104,8 +104,12 @@ export default function InterviewPage() {
         <div className="flex justify-center gap-12">
           {mockInterviewers.map(interviewer => (
             <div key={interviewer.id} className="text-center">
-              <div className="w-40 h-40 bg-gray-300 rounded-2xl mb-2 overflow-hidden shadow-md">
-                <img src={interviewer.image} alt={interviewer.name} className="w-full h-full object-cover" />
+              <div className="w-40 h-40 bg-gray-200 rounded-2xl mb-2 shadow-md flex items-center justify-center">
+                {interviewer.role === '입학사정관' ? (
+                  <User size={80} className="text-gray-500" />
+                ) : (
+                  <GraduationCap size={80} className="text-gray-500" />
+                )}
               </div>
               <p className="font-semibold text-gray-700">{interviewer.name}</p>
             </div>
