@@ -63,60 +63,6 @@ export default function HomePage() {
 
   return (
     <div className="min-h-screen">
-      {/* 네비게이션 */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-white/90 backdrop-blur-sm border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center">
-              <div className="flex-shrink-0">
-                <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                  면접하자
-                </h1>
-              </div>
-            </div>
-            <div className="flex items-center space-x-4">
-              {loading ? (
-                <div className="flex items-center gap-4 animate-pulse">
-                  <div className="w-24 h-8 bg-gray-200 rounded-md"></div>
-                  <div className="w-32 h-10 bg-gray-200 rounded-full"></div>
-                </div>
-              ) : user ? (
-                <>
-                  <div className="flex items-center gap-2">
-                    <UserCircle className="w-5 h-5 text-gray-600" />
-                    <span className="text-sm font-medium text-gray-700 hidden sm:block">
-                      {user.email}
-                    </span>
-                  </div>
-                  <button
-                    onClick={handleSignOut}
-                    className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"
-                  >
-                    <LogOut className="w-4 h-4" />
-                    <span>로그아웃</span>
-                  </button>
-                </>
-              ) : (
-                <>
-                  <Link 
-                    to="/login" 
-                    className="text-gray-600 hover:text-blue-600 transition-colors"
-                  >
-                    로그인
-                  </Link>
-                  <Link 
-                    to="/signup" 
-                    className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-2 rounded-full hover:shadow-lg transition-all duration-300 flex items-center gap-2"
-                  >
-                    시작하기 <ChevronRight className="w-4 h-4" />
-                  </Link>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
-      </nav>
-
       {/* 히어로 섹션 */}
       <section className="pt-32 pb-20 px-4">
         <div className="max-w-7xl mx-auto text-center">

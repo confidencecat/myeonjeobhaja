@@ -1,271 +1,190 @@
-import { useState, useEffect, useRef } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { Mic, MicOff, Square, Pause, Play, User, Clock, Volume2 } from 'lucide-react'
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { ChevronLeft, ChevronRight, Settings, Clock, HelpCircle, Mic, Send, Volume2, X } from 'lucide-react';
 
-export default function InterviewPage() {
-  const navigate = useNavigate()
-  const [isRecording, setIsRecording] = useState(false)
-  const [isPaused, setIsPaused] = useState(false)
-  const [currentQuestion, setCurrentQuestion] = useState(0)
-  const [timeLeft, setTimeLeft] = useState(600) // 10분 (초)
-  const [interviewData, setInterviewData] = useState<any>(null)
-  const [isAIThinking, setIsAIThinking] = useState(false)
-  const videoRef = useRef<HTMLVideoElement>(null)
-  const streamRef = useRef<MediaStream | null>(null)
+// --- Mock Data ---
+const mockInterviewers = [
+  { id: 1, name: '김미영 입학사정관', image: 'https://i.pravatar.cc/150?u=a042581f4e29026704d' },
+  { id: 2, name: '최영수 교수', image: 'https://i.pravatar.cc/150?u=a042581f4e29026705d' },
+  { id: 3, name: '박준호 입학사정관', image: 'https://i.pravatar.cc/150?u=a042581f4e29026706d' },
+];
 
-  const questions = [
-    "간단한 자기소개를 해주세요.",
-    "우리 학교에 지원한 동기는 무엇인가요?",
-    "본인의 장점과 단점을 말씀해주세요.",
-    "앞으로의 진로계획에 대해 설명해주세요.",
-    "마지막으로 하고 싶은 말씀이 있나요?"
-  ]
+const mockChatHistory = [
+  { speaker: '면접관', message: '안녕하세요, 면접에 오신 것을 환영합니다. 먼저 자기소개 부탁드립니다.' },
+  { speaker: '나', message: '네, 안녕하십니까. 저는 무한한 가능성을 가진 지원자 OOO입니다.' },
+  { speaker: '면접관', message: '반갑습니다. OOO님. 저희 학교에 지원하신 동기가 무엇인가요?' },
+];
 
-  const interviewer = {
-    name: "김면접",
-    role: "입학사정관",
-    personality: "친근하고 따뜻한",
-    avatar: "👨‍🏫"
-  }
+const mockHelperTips = [
+  '답변은 두괄식으로 명확하게 전달하는 것이 좋습니다.',
+  '자신감 있는 목소리와 긍정적인 태도를 유지하세요.',
+  '질문의 의도를 파악하고 핵심에 맞춰 답변하세요.',
+];
+
+// --- Sub-components ---
+
+const VoiceWaveform = () => {
+  const [bars, setBars] = useState(Array(30).fill(0).map(() => Math.random() * 20 + 5));
 
   useEffect(() => {
-    // 면접 설정 데이터 불러오기
-    const setupData = sessionStorage.getItem('interviewSetup')
-    if (setupData) {
-      setInterviewData(JSON.parse(setupData))
-      setTimeLeft(parseInt(JSON.parse(setupData).duration) * 60)
-    } else {
-      navigate('/setup')
-      return
-    }
-
-    // 카메라 시작
-    startCamera()
-
-    return () => {
-      // 컴포넌트 언마운트 시 카메라 스트림 정리
-      if (streamRef.current) {
-        streamRef.current.getTracks().forEach(track => track.stop())
-      }
-    }
-  }, [navigate])
-
-  useEffect(() => {
-    // 타이머
-    if (!isPaused && timeLeft > 0) {
-      const timer = setTimeout(() => setTimeLeft(timeLeft - 1), 1000)
-      return () => clearTimeout(timer)
-    } else if (timeLeft === 0) {
-      handleFinishInterview()
-    }
-  }, [timeLeft, isPaused])
-
-  const startCamera = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true })
-      streamRef.current = stream
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream
-      }
-    } catch (error) {
-      console.error('카메라 접근 실패:', error)
-      alert('카메라와 마이크에 접근할 수 없습니다. 브라우저 설정을 확인해주세요.')
-    }
-  }
-
-  const toggleRecording = () => {
-    if (!isRecording) {
-      setIsRecording(true)
-      setIsAIThinking(false)
-    } else {
-      setIsRecording(false)
-      simulateAIResponse()
-    }
-  }
-
-  const simulateAIResponse = () => {
-    setIsAIThinking(true)
-    // AI 응답 시뮬레이션 (3초 후 다음 질문)
-    setTimeout(() => {
-      setIsAIThinking(false)
-      if (currentQuestion < questions.length - 1) {
-        setCurrentQuestion(currentQuestion + 1)
-      } else {
-        handleFinishInterview()
-      }
-    }, 3000)
-  }
-
-  const handlePause = () => {
-    setIsPaused(!isPaused)
-  }
-
-  const handleFinishInterview = () => {
-    // 면접 결과 데이터 생성
-    const result = {
-      ...interviewData,
-      questionsAnswered: currentQuestion + 1,
-      totalQuestions: questions.length,
-      timeUsed: (parseInt(interviewData?.duration || '10') * 60) - timeLeft,
-      timestamp: new Date().toISOString()
-    }
-    
-    sessionStorage.setItem('interviewResult', JSON.stringify(result))
-    navigate('/result')
-  }
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60)
-    const secs = seconds % 60
-    return `${mins}:${secs.toString().padStart(2, '0')}`
-  }
-
-  if (!interviewData) {
-    return <div>Loading...</div>
-  }
+    const interval = setInterval(() => {
+      setBars(bars.map(() => Math.random() * 25 + 5));
+    }, 150);
+    return () => clearInterval(interval);
+  }, []);
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white">
-      {/* 상단 상태바 */}
-      <div className="bg-gray-800 p-4 flex justify-between items-center">
-        <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <Clock className="w-5 h-5 text-blue-400" />
-            <span className="font-mono text-lg">{formatTime(timeLeft)}</span>
+    <div className="flex items-center justify-center gap-1 w-full h-full bg-gray-800 rounded-lg p-4">
+      {bars.map((height, i) => (
+        <div key={i} className="w-1 bg-green-400 rounded-full" style={{ height: `${height}px`, transition: 'height 0.1s ease-in-out' }}></div>
+      ))}
+    </div>
+  );
+};
+
+// --- Main Component ---
+
+export default function InterviewPage() {
+  const navigate = useNavigate();
+  const [isChatOpen, setIsChatOpen] = useState(true);
+  const [inputType, setInputType] = useState<'text' | 'voice'>('voice');
+  
+  const [timerActive, setTimerActive] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(10 * 60); // 10 minutes
+
+  const chatEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (timerActive && timeLeft > 0) {
+      const timerId = setTimeout(() => setTimeLeft(timeLeft - 1), 1000);
+      return () => clearTimeout(timerId);
+    }
+  }, [timerActive, timeLeft]);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [mockChatHistory]);
+
+  const formatTime = (seconds: number) => {
+    const minutes = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  return (
+    <div className="flex h-screen bg-gray-100 font-sans overflow-hidden">
+      {/* Left Sidebar: Chat */}
+      <div className={`transition-all duration-300 bg-white shadow-lg flex flex-col ${isChatOpen ? 'w-80' : 'w-0'} overflow-hidden`}>
+        <div className="p-4 border-b flex-shrink-0">
+          <h2 className="text-lg font-bold text-gray-800">면접 기록</h2>
+        </div>
+        <div className="flex-grow p-4 overflow-y-auto">
+          <div className="space-y-4">
+            {mockChatHistory.map((chat, index) => (
+              <div key={index} className={`flex ${chat.speaker === '나' ? 'justify-end' : 'justify-start'}`}>
+                <div className={`p-3 rounded-lg max-w-xs ${chat.speaker === '나' ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800'}`}>
+                  <p className="text-sm">{chat.message}</p>
+                </div>
+              </div>
+            ))}
+            <div ref={chatEndRef} />
           </div>
-          <div className="text-gray-400">
-            질문 {currentQuestion + 1} / {questions.length}
+        </div>
+      </div>
+
+      {/* Center Content: Interviewers & Input */}
+      <main className="flex-1 flex flex-col items-center justify-between p-6 relative">
+        <button 
+          onClick={() => setIsChatOpen(!isChatOpen)} 
+          className="absolute top-1/2 -left-4 z-10 transform -translate-y-1/2 bg-white p-2 rounded-full shadow-md border hover:bg-gray-100"
+        >
+          {isChatOpen ? <ChevronLeft size={20} /> : <ChevronRight size={20} />}
+        </button>
+
+        <div className="flex justify-center gap-12">
+          {mockInterviewers.map(interviewer => (
+            <div key={interviewer.id} className="text-center">
+              <div className="w-40 h-40 bg-gray-300 rounded-2xl mb-2 overflow-hidden shadow-md">
+                <img src={interviewer.image} alt={interviewer.name} className="w-full h-full object-cover" />
+              </div>
+              <p className="font-semibold text-gray-700">{interviewer.name}</p>
+            </div>
+          ))}
+        </div>
+        
+        <div className="w-full max-w-2xl h-24">
+          {inputType === 'text' ? (
+            <div className="relative w-full h-full">
+              <textarea 
+                className="w-full h-full p-4 pr-20 border rounded-lg resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="답변을 입력하세요..."
+              />
+              <button className="absolute right-3 top-1/2 -translate-y-1/2 p-2 bg-blue-600 text-white rounded-full hover:bg-blue-700">
+                <Send size={20} />
+              </button>
+            </div>
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <VoiceWaveform />
+            </div>
+          )}
+        </div>
+      </main>
+
+      {/* Right Sidebar: Functions */}
+      <div className="w-80 bg-white shadow-lg p-4 flex flex-col gap-4">
+        {/* Timer Section */}
+        <div className="p-4 border rounded-xl bg-gray-50">
+          <h3 className="font-bold text-gray-800 flex items-center gap-2 mb-3"><Clock size={18} /> 면접 시간</h3>
+          {timerActive ? (
+            <div className="text-center text-4xl font-mono font-bold text-blue-600 py-2">
+              {formatTime(timeLeft)}
+            </div>
+          ) : (
+            <button 
+              onClick={() => setTimerActive(true)}
+              className="w-full py-2 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-colors"
+            >
+              시작하기
+            </button>
+          )}
+        </div>
+
+        {/* Settings Section */}
+        <div className="p-4 border rounded-xl bg-gray-50">
+          <h3 className="font-bold text-gray-800 flex items-center gap-2 mb-3"><Settings size={18} /> 현재 설정</h3>
+          <div className="space-y-2 text-sm">
+            <p><span className="font-semibold w-24 inline-block">프리셋:</span> 표준</p>
+            <p><span className="font-semibold w-24 inline-block">질문 깊이:</span> 심화</p>
+            <div className="flex items-center">
+              <label className="font-semibold w-24 inline-block">입력 방식:</label>
+              <div className="flex items-center gap-1 rounded-lg p-1 bg-gray-200">
+                <button onClick={() => setInputType('text')} className={`px-3 py-1 text-xs rounded-md ${inputType === 'text' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-600'}`}>텍스트</button>
+                <button onClick={() => setInputType('voice')} className={`px-3 py-1 text-xs rounded-md ${inputType === 'voice' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-600'}`}>음성</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Helper Section */}
+        <div className="p-4 border rounded-xl bg-gray-50 flex-grow flex flex-col">
+          <h3 className="font-bold text-gray-800 flex items-center gap-2 mb-3"><HelpCircle size={18} /> 실시간 도우미</h3>
+          <div className="flex-grow overflow-y-auto">
+            <ul className="space-y-2 text-sm text-gray-600 list-disc list-inside">
+              {mockHelperTips.map((tip, index) => (
+                <li key={index}>{tip}</li>
+              ))}
+            </ul>
           </div>
         </div>
         
-        <div className="flex items-center gap-4">
-          <button
-            onClick={handlePause}
-            className="p-2 rounded-full bg-gray-700 hover:bg-gray-600 transition-colors"
-          >
-            {isPaused ? <Play className="w-5 h-5" /> : <Pause className="w-5 h-5" />}
-          </button>
-          <button
-            onClick={handleFinishInterview}
-            className="px-4 py-2 bg-red-600 hover:bg-red-700 rounded-lg transition-colors"
-          >
-            <Square className="w-4 h-4 inline mr-2" />
-            면접 종료
-          </button>
-        </div>
-      </div>
-
-      <div className="flex h-screen">
-        {/* 면접관 영역 */}
-        <div className="w-1/2 bg-gradient-to-br from-blue-900 to-purple-900 flex flex-col">
-          <div className="p-6">
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 text-center">
-              <div className="text-6xl mb-4">{interviewer.avatar}</div>
-              <h2 className="text-2xl font-bold mb-2">{interviewer.name}</h2>
-              <p className="text-blue-200 mb-4">{interviewer.role}</p>
-              <div className="text-sm text-gray-300">
-                {interviewer.personality} 면접관
-              </div>
-            </div>
-          </div>
-          
-          {/* 질문 영역 */}
-          <div className="flex-1 p-6">
-            <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 h-full flex flex-col justify-center">
-              <div className="flex items-center gap-2 mb-4">
-                <Volume2 className="w-5 h-5 text-yellow-400" />
-                <span className="text-sm text-gray-300">면접관이 말하고 있습니다...</span>
-              </div>
-              
-              <div className="text-xl leading-relaxed">
-                {isAIThinking ? (
-                  <div className="text-gray-400">
-                    <div className="flex items-center gap-2">
-                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white"></div>
-                      AI가 다음 질문을 준비하고 있습니다...
-                    </div>
-                  </div>
-                ) : (
-                  questions[currentQuestion]
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* 응시자 영역 */}
-        <div className="w-1/2 bg-gray-800 flex flex-col">
-          <div className="p-6">
-            <div className="bg-gray-700 rounded-xl p-4">
-              <div className="flex items-center gap-3 mb-3">
-                <User className="w-5 h-5 text-green-400" />
-                <span className="font-semibold">응시자</span>
-                <div className={`px-2 py-1 rounded text-xs ${
-                  isRecording ? 'bg-red-500' : 'bg-gray-500'
-                }`}>
-                  {isRecording ? '답변 중' : '대기 중'}
-                </div>
-              </div>
-              <div className="text-sm text-gray-300">
-                {interviewData.major} · {interviewData.university}
-              </div>
-            </div>
-          </div>
-          
-          {/* 비디오 영역 */}
-          <div className="flex-1 p-6">
-            <div className="relative h-full bg-black rounded-xl overflow-hidden">
-              <video
-                ref={videoRef}
-                autoPlay
-                muted
-                playsInline
-                className="w-full h-full object-cover"
-              />
-              
-              {/* 녹화 표시 */}
-              {isRecording && (
-                <div className="absolute top-4 left-4 flex items-center gap-2">
-                  <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
-                  <span className="text-white text-sm font-semibold">REC</span>
-                </div>
-              )}
-            </div>
-          </div>
-          
-          {/* 컨트롤 버튼 */}
-          <div className="p-6">
-            <div className="flex justify-center">
-              <button
-                onClick={toggleRecording}
-                disabled={isAIThinking}
-                className={`w-16 h-16 rounded-full flex items-center justify-center transition-all ${
-                  isRecording
-                    ? 'bg-red-500 hover:bg-red-600'
-                    : 'bg-blue-600 hover:bg-blue-700'
-                } disabled:opacity-50 disabled:cursor-not-allowed`}
-              >
-                {isRecording ? (
-                  <MicOff className="w-8 h-8" />
-                ) : (
-                  <Mic className="w-8 h-8" />
-                )}
-              </button>
-            </div>
-            <div className="text-center mt-4 text-sm text-gray-400">
-              {isRecording ? '답변을 완료하려면 클릭하세요' : '답변을 시작하려면 클릭하세요'}
-            </div>
-          </div>
-        </div>
-      </div>
-      
-      {/* 진행률 바 */}
-      <div className="fixed bottom-0 left-0 right-0 h-1 bg-gray-700">
-        <div 
-          className="h-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-300"
-          style={{ width: `${((currentQuestion + 1) / questions.length) * 100}%` }}
-        />
+        <button 
+          onClick={() => navigate('/')}
+          className="w-full py-2 bg-red-600 text-white font-semibold rounded-lg hover:bg-red-700 transition-colors flex items-center justify-center gap-2"
+        >
+          <X size={18} /> 나가기
+        </button>
       </div>
     </div>
-  )
+  );
 }

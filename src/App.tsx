@@ -47,7 +47,9 @@ function App() {
                 path="/interview" 
                 element={
                   <ProtectedRoute>
-                    <InterviewPage />
+                    <ProfileCompleteRoute>
+                      <InterviewPage />
+                    </ProfileCompleteRoute>
                   </ProtectedRoute>
                 } 
               />
