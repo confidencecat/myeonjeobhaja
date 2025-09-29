@@ -429,73 +429,115 @@ export default function InterviewSetupPage() {
                   <button onClick={() => handlePresetChange('advanced')} className={`flex-1 px-3 py-1 text-sm rounded-md transition-colors ${advancedSettings.preset === 'advanced' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-600 hover:bg-gray-200'}`}>고급</button>
                   <button onClick={() => handleAdvancedSettingChange('preset', 'custom')} className={`flex-1 px-3 py-1 text-sm rounded-md transition-colors ${advancedSettings.preset === 'custom' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-600 hover:bg-gray-200'}`}>커스텀</button>
                 </div>
+                <div className="mt-4 p-3 bg-gray-50 rounded-lg text-sm text-gray-600">
+                  {advancedSettings.preset === 'beginner' && '면접이 처음이신 분들을 위한 설정입니다. 편안한 분위기에서 기본적인 질문들로 진행됩니다.'}
+                  {advancedSettings.preset === 'standard' && '가장 일반적인 면접 환경을 시뮬레이션합니다. 적절한 심층 질문과 후속 질문이 포함됩니다.'}
+                  {advancedSettings.preset === 'advanced' && '실제 면접과 유사한 높은 난이도의 설정입니다. 전문적이고 압박감이 있는 질문을 통해 실력을 점검합니다.'}
+                  {advancedSettings.preset === 'custom' && '아래의 상세 설정을 자유롭게 변경하여 자신만의 면접 환경을 만들 수 있습니다.'}
+                </div>
               </div>
               <div className="p-6 border rounded-xl bg-white shadow-sm">
                 <h3 className="font-bold text-lg flex items-center gap-2"><BrainCircuit size={20} className="text-purple-600"/>질문 스타일 설정</h3>
                 <div className="space-y-4 mt-4">
-                  <SettingRadioGroup
-                    label="질문 깊이"
-                    value={advancedSettings.question_depth}
-                    onChange={(e) => handleAdvancedSettingChange('question_depth', e.target.value)}
-                    options={[
-                      { value: 'surface', label: '표면적' },
-                      { value: 'in-depth', label: '심화' },
-                      { value: 'professional', label: '전문적' },
-                    ]}
-                  />
-                  <SettingRadioGroup
-                    label="질문 방식"
-                    value={advancedSettings.question_method}
-                    onChange={(e) => handleAdvancedSettingChange('question_method', e.target.value)}
-                    options={[
-                      { value: 'direct', label: '직접적' },
-                      { value: 'leading', label: '유도적' },
-                      { value: 'open', label: '개방적' },
-                    ]}
-                  />
-                  <SettingToggle
-                    label="후속 질문 허용"
-                    checked={advancedSettings.allow_follow_up}
-                    onChange={(e) => handleAdvancedSettingChange('allow_follow_up', e.target.checked)}
-                  />
-                  {advancedSettings.allow_follow_up && (
-                    <SettingSlider
-                      label="최대 후속 질문 깊이"
-                      value={advancedSettings.max_follow_up_depth}
-                      onChange={(e) => handleAdvancedSettingChange('max_follow_up_depth', parseInt(e.target.value))}
-                      min={1} max={5} step={1}
-                      displayValue={`${advancedSettings.max_follow_up_depth}단계`}
+                  <div>
+                    <SettingRadioGroup
+                      label="질문 깊이"
+                      value={advancedSettings.question_depth}
+                      onChange={(e) => handleAdvancedSettingChange('question_depth', e.target.value)}
+                      options={[
+                        { value: 'surface', label: '표면적' },
+                        { value: 'in-depth', label: '심화' },
+                        { value: 'professional', label: '전문적' },
+                      ]}
                     />
+                    <p className="text-xs text-gray-500 mt-1 pl-2">
+                      {advancedSettings.question_depth === 'surface' && '단답형으로 답할 수 있는 기본적인 질문을 합니다.'}
+                      {advancedSettings.question_depth === 'in-depth' && '답변에 대한 구체적인 근거나 사례를 요구하는 질문을 합니다.'}
+                      {advancedSettings.question_depth === 'professional' && '전공 분야에 대한 깊이 있는 이해와 통찰력을 요구하는 질문을 합니다.'}
+                    </p>
+                  </div>
+                  <div>
+                    <SettingRadioGroup
+                      label="질문 방식"
+                      value={advancedSettings.question_method}
+                      onChange={(e) => handleAdvancedSettingChange('question_method', e.target.value)}
+                      options={[
+                        { value: 'direct', label: '직접적' },
+                        { value: 'leading', label: '유도적' },
+                        { value: 'open', label: '개방적' },
+                      ]}
+                    />
+                    <p className="text-xs text-gray-500 mt-1 pl-2">
+                      {advancedSettings.question_method === 'direct' && '명확하고 간결한 답변을 요구하는 질문을 합니다.'}
+                      {advancedSettings.question_method === 'leading' && '특정 답변 방향을 암시하거나 힌트를 포함한 질문을 합니다.'}
+                      {advancedSettings.question_method === 'open' && '자유롭게 자신의 생각과 경험을 이야기하도록 유도하는 질문을 합니다.'}
+                    </p>
+                  </div>
+                  <div>
+                    <SettingToggle
+                      label="후속 질문 허용"
+                      checked={advancedSettings.allow_follow_up}
+                      onChange={(e) => handleAdvancedSettingChange('allow_follow_up', e.target.checked)}
+                    />
+                    <p className="text-xs text-gray-500 mt-1 pl-2">답변 내용에 따라 추가적인 질문을 할지 여부를 결정합니다.</p>
+                  </div>
+                  {advancedSettings.allow_follow_up && (
+                    <div>
+                      <SettingSlider
+                        label="최대 후속 질문 깊이"
+                        value={advancedSettings.max_follow_up_depth}
+                        onChange={(e) => handleAdvancedSettingChange('max_follow_up_depth', parseInt(e.target.value))}
+                        min={1} max={5} step={1}
+                        displayValue={`${advancedSettings.max_follow_up_depth}단계`}
+                      />
+                      <p className="text-xs text-gray-500 mt-1 pl-2">하나의 질문에서 파생되는 후속 질문의 최대 단계를 설정합니다.</p>
+                    </div>
                   )}
                 </div>
               </div>
                <div className="p-6 border rounded-xl bg-white shadow-sm">
                 <h3 className="font-bold text-lg flex items-center gap-2"><Mic size={20} className="text-teal-600"/>면접 진행 방식</h3>
                 <div className="space-y-4 mt-4">
-                    <SettingRadioGroup
-                      label="질문 시간 분배"
-                      value={advancedSettings.time_distribution}
-                      onChange={(e) => handleAdvancedSettingChange('time_distribution', e.target.value)}
-                      options={[
-                        { value: 'even', label: '균등' },
-                        { value: 'weighted', label: '가중치' },
-                      ]}
-                    />
-                    <SettingToggle
-                      label="면접관 상호작용 허용"
-                      checked={advancedSettings.interviewer_interaction}
-                      onChange={(e) => handleAdvancedSettingChange('interviewer_interaction', e.target.checked)}
-                    />
-                    <SettingRadioGroup
-                      label="질문 순서"
-                      value={advancedSettings.question_order}
-                      onChange={(e) => handleAdvancedSettingChange('question_order', e.target.value)}
-                      options={[
-                        { value: 'sequential', label: '순차적' },
-                        { value: 'random', label: '랜덤' },
-                        { value: 'adaptive', label: '적응형' },
-                      ]}
-                    />
+                    <div>
+                      <SettingRadioGroup
+                        label="질문 시간 분배"
+                        value={advancedSettings.time_distribution}
+                        onChange={(e) => handleAdvancedSettingChange('time_distribution', e.target.value)}
+                        options={[
+                          { value: 'even', label: '균등' },
+                          { value: 'weighted', label: '가중치' },
+                        ]}
+                      />
+                      <p className="text-xs text-gray-500 mt-1 pl-2">
+                        {advancedSettings.time_distribution === 'even' && '모든 평가 요소에 대해 비슷한 수의 질문을 합니다.'}
+                        {advancedSettings.time_distribution === 'weighted' && '설정한 평가 요소의 가중치에 따라 질문 수를 조절합니다.'}
+                      </p>
+                    </div>
+                    <div>
+                      <SettingToggle
+                        label="면접관 상호작용 허용"
+                        checked={advancedSettings.interviewer_interaction}
+                        onChange={(e) => handleAdvancedSettingChange('interviewer_interaction', e.target.checked)}
+                      />
+                      <p className="text-xs text-gray-500 mt-1 pl-2">여러 면접관이 대화하듯 자연스럽게 질문을 주고받을 수 있습니다.</p>
+                    </div>
+                    <div>
+                      <SettingRadioGroup
+                        label="질문 순서"
+                        value={advancedSettings.question_order}
+                        onChange={(e) => handleAdvancedSettingChange('question_order', e.target.value)}
+                        options={[
+                          { value: 'sequential', label: '순차적' },
+                          { value: 'random', label: '랜덤' },
+                          { value: 'adaptive', label: '적응형' },
+                        ]}
+                      />
+                      <p className="text-xs text-gray-500 mt-1 pl-2">
+                        {advancedSettings.question_order === 'sequential' && '미리 정해진 순서에 따라 질문합니다.'}
+                        {advancedSettings.question_order === 'random' && '평가 요소와 관계없이 질문을 무작위로 제시합니다.'}
+                        {advancedSettings.question_order === 'adaptive' && '답변 내용과 수준에 맞춰 다음 질문의 난이도와 유형을 조절합니다.'}
+                      </p>
+                    </div>
                   </div>
               </div>
             </div>
@@ -541,70 +583,102 @@ export default function InterviewSetupPage() {
              <div className="p-6 border rounded-xl bg-white shadow-sm">
                 <h3 className="font-bold text-lg flex items-center gap-2"><Smile size={20} className="text-yellow-600"/>면접 분위기</h3>
                 <div className="space-y-4 mt-4">
-                    <SettingRadioGroup
-                      label="압박 수준"
-                      value={advancedSettings.pressure_level}
-                      onChange={(e) => handleAdvancedSettingChange('pressure_level', e.target.value)}
-                      options={[
-                        { value: 'comfortable', label: '편안함' },
-                        { value: 'standard', label: '적당함' },
-                        { value: 'tense', label: '긴장감' },
-                      ]}
-                    />
-                    <SettingRadioGroup
-                      label="격려 빈도"
-                      value={advancedSettings.encouragement_frequency}
-                      onChange={(e) => handleAdvancedSettingChange('encouragement_frequency', e.target.value)}
-                      options={[
-                        { value: 'frequent', label: '자주' },
-                        { value: 'standard', label: '보통' },
-                        { value: 'rare', label: '드물게' },
-                      ]}
-                    />
+                    <div>
+                      <SettingRadioGroup
+                        label="압박 수준"
+                        value={advancedSettings.pressure_level}
+                        onChange={(e) => handleAdvancedSettingChange('pressure_level', e.target.value)}
+                        options={[
+                          { value: 'comfortable', label: '편안함' },
+                          { value: 'standard', label: '적당함' },
+                          { value: 'tense', label: '긴장감' },
+                        ]}
+                      />
+                      <p className="text-xs text-gray-500 mt-1 pl-2">
+                        {advancedSettings.pressure_level === 'comfortable' && '응시자가 편안함을 느끼도록 긍정적인 분위기를 조성합니다.'}
+                        {advancedSettings.pressure_level === 'standard' && '일반적인 면접과 같이 적당한 긴장감을 유지합니다.'}
+                        {advancedSettings.pressure_level === 'tense' && '답변하기 어려운 질문이나 반박을 통해 스트레스 상황 대처 능력을 평가합니다.'}
+                      </p>
+                    </div>
+                    <div>
+                      <SettingRadioGroup
+                        label="격려 빈도"
+                        value={advancedSettings.encouragement_frequency}
+                        onChange={(e) => handleAdvancedSettingChange('encouragement_frequency', e.target.value)}
+                        options={[
+                          { value: 'frequent', label: '자주' },
+                          { value: 'standard', label: '보통' },
+                          { value: 'rare', label: '드물게' },
+                        ]}
+                      />
+                      <p className="text-xs text-gray-500 mt-1 pl-2">
+                        {advancedSettings.encouragement_frequency === 'frequent' && '답변에 대해 자주 긍정적인 피드백을 주며 자신감을 북돋아줍니다.'}
+                        {advancedSettings.encouragement_frequency === 'standard' && '필요할 때 적절한 격려와 반응을 보여줍니다.'}
+                        {advancedSettings.encouragement_frequency === 'rare' && '특별한 칭찬이나 격려 없이 중립적인 태도를 유지합니다.'}
+                      </p>
+                    </div>
                   </div>
               </div>
               <div className="p-6 border rounded-xl bg-white shadow-sm">
                 <h3 className="font-bold text-lg flex items-center gap-2"><FileText size={20} className="text-indigo-600"/>면접 컨텍스트</h3>
                 <div className="space-y-4 mt-4">
-                    <SettingSlider
-                      label="전공 질문 비율"
-                      value={advancedSettings.major_question_ratio}
-                      onChange={(e) => handleAdvancedSettingChange('major_question_ratio', parseInt(e.target.value))}
-                      min={0} max={100} step={10}
-                      displayValue={`${advancedSettings.major_question_ratio}%`}
-                    />
-                    <SettingSlider
-                      label="개인 경험 질문 비율"
-                      value={advancedSettings.personal_experience_ratio}
-                      onChange={(e) => handleAdvancedSettingChange('personal_experience_ratio', parseInt(e.target.value))}
-                      min={0} max={100} step={10}
-                      displayValue={`${advancedSettings.personal_experience_ratio}%`}
-                    />
-                    <SettingToggle
-                      label="시사/상식 질문 포함"
-                      checked={advancedSettings.include_current_events}
-                      onChange={(e) => handleAdvancedSettingChange('include_current_events', e.target.checked)}
-                    />
+                    <div>
+                      <SettingSlider
+                        label="전공 질문 비율"
+                        value={advancedSettings.major_question_ratio}
+                        onChange={(e) => handleAdvancedSettingChange('major_question_ratio', parseInt(e.target.value))}
+                        min={0} max={100} step={10}
+                        displayValue={`${advancedSettings.major_question_ratio}%`}
+                      />
+                      <p className="text-xs text-gray-500 mt-1 pl-2">전체 질문 중 전공 관련 지식을 묻는 질문의 비율을 설정합니다.</p>
+                    </div>
+                    <div>
+                      <SettingSlider
+                        label="개인 경험 질문 비율"
+                        value={advancedSettings.personal_experience_ratio}
+                        onChange={(e) => handleAdvancedSettingChange('personal_experience_ratio', parseInt(e.target.value))}
+                        min={0} max={100} step={10}
+                        displayValue={`${advancedSettings.personal_experience_ratio}%`}
+                      />
+                      <p className="text-xs text-gray-500 mt-1 pl-2">생활기록부 기반 활동이나 경험에 대한 질문의 비율을 설정합니다.</p>
+                    </div>
+                    <div>
+                      <SettingToggle
+                        label="시사/상식 질문 포함"
+                        checked={advancedSettings.include_current_events}
+                        onChange={(e) => handleAdvancedSettingChange('include_current_events', e.target.checked)}
+                      />
+                      <p className="text-xs text-gray-500 mt-1 pl-2">최근 사회적 이슈나 기본적인 상식에 대한 질문을 포함할지 여부를 결정합니다.</p>
+                    </div>
                   </div>
               </div>
               <div className="p-6 border rounded-xl bg-white shadow-sm">
                 <h3 className="font-bold text-lg flex items-center gap-2"><Video size={20} className="text-red-600"/>면접 기록 및 분석</h3>
                 <div className="space-y-4 mt-4">
-                    <SettingToggle
-                      label="면접 과정 상세 기록"
-                      checked={advancedSettings.detailed_recording}
-                      onChange={(e) => handleAdvancedSettingChange('detailed_recording', e.target.checked)}
-                    />
-                    <SettingToggle
-                      label="답변 분석 및 개선점 제시"
-                      checked={advancedSettings.answer_analysis}
-                      onChange={(e) => handleAdvancedSettingChange('answer_analysis', e.target.checked)}
-                    />
-                    <SettingToggle
-                      label="면접 후 상세 리포트 생성"
-                      checked={advancedSettings.generate_report}
-                      onChange={(e) => handleAdvancedSettingChange('generate_report', e.target.checked)}
-                    />
+                    <div>
+                      <SettingToggle
+                        label="면접 과정 상세 기록"
+                        checked={advancedSettings.detailed_recording}
+                        onChange={(e) => handleAdvancedSettingChange('detailed_recording', e.target.checked)}
+                      />
+                      <p className="text-xs text-gray-500 mt-1 pl-2">질문, 답변, 면접관의 반응 등 모든 과정을 텍스트로 기록합니다.</p>
+                    </div>
+                    <div>
+                      <SettingToggle
+                        label="답변 분석 및 개선점 제시"
+                        checked={advancedSettings.answer_analysis}
+                        onChange={(e) => handleAdvancedSettingChange('answer_analysis', e.target.checked)}
+                      />
+                      <p className="text-xs text-gray-500 mt-1 pl-2">각 답변의 논리성, 표현력 등을 분석하고 구체적인 개선 방향을 제안합니다.</p>
+                    </div>
+                    <div>
+                      <SettingToggle
+                        label="면접 후 상세 리포트 생성"
+                        checked={advancedSettings.generate_report}
+                        onChange={(e) => handleAdvancedSettingChange('generate_report', e.target.checked)}
+                      />
+                      <p className="text-xs text-gray-500 mt-1 pl-2">종합 평가, 강점/약점 분석, 예상 점수 등을 포함한 리포트를 생성합니다.</p>
+                    </div>
                   </div>
               </div>
           </div>
