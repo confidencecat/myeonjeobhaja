@@ -46,7 +46,7 @@
 - **`src/contexts/AuthContext.tsx`**:
   - **핵심 파일**로, 모든 Supabase 인증 로직(회원가입, 로그인, 로그아웃, 세션 관리 등)이 포함되어 있습니다.
   - `useAuth` 훅을 통해 앱 전역에서 인증 상태(사용자 정보, 로딩 상태 등)를 공유합니다.
-- **`src/lib/supabaseClient.ts`**: Supabase 클라이언트를 초기화하고 export합니다.
+- **`src/lib/supabase.ts`**: Supabase 클라이언트를 초기화하고 export합니다.
 - **`src/pages/`**: 각 페이지 컴포넌트가 위치합니다.
   - `LoginPage.tsx`, `SignUpPage.tsx`: 인증 관련 UI 및 폼 처리 로직.
   - `HomePage.tsx`: 메인 페이지.
