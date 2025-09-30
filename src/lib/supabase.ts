@@ -26,6 +26,8 @@ export interface UserProfile {
   major?: string
   university?: string
   phone?: string
+  desired_major?: string
+  role?: string
   created_at: string
   updated_at: string
 }

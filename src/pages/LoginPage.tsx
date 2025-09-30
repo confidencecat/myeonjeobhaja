@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext'
 
 export default function LoginPage() {
   const navigate = useNavigate()
-  const { signIn, user } = useAuth()
+  const { signIn, user, isAdmin, loading: authLoading } = useAuth()
   
   const [formData, setFormData] = useState({
     email: '',
@@ -17,10 +17,16 @@ export default function LoginPage() {
   const [error, setError] = useState('')
 
   useEffect(() => {
+    if (authLoading) return
+
     if (user) {
-      navigate('/')
+      if (isAdmin) {
+        navigate('/admin', { replace: true })
+      } else {
+        navigate('/', { replace: true })
+      }
     }
-  }, [user, navigate])
+  }, [user, isAdmin, authLoading, navigate])
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
@@ -49,7 +55,7 @@ export default function LoginPage() {
     
     if (!validateForm()) return
     
-    setLoading(true)
+  setLoading(true)
     setError('')
     
     try {

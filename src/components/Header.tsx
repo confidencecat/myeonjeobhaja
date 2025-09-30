@@ -1,9 +1,9 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
-import { LogOut, UserCircle, LogIn, UserPlus } from 'lucide-react'
+import { LogOut, UserCircle } from 'lucide-react'
 
 export default function Header() {
-  const { user, signOut, loading } = useAuth()
+  const { user, signOut, loading, isAdmin } = useAuth()
   const navigate = useNavigate()
 
   const handleSignOut = async () => {
@@ -32,12 +32,20 @@ export default function Header() {
               </div>
             ) : user ? (
               <>
-                <Link to="/profile" className="text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors">
-                  프로필 설정
-                </Link>
-                <Link to="/setup" className="text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors">
-                  면접 설정
-                </Link>
+                {isAdmin ? (
+                  <Link to="/admin" className="text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors">
+                    관리자 페이지
+                  </Link>
+                ) : (
+                  <>
+                    <Link to="/profile" className="text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors">
+                      프로필 설정
+                    </Link>
+                    <Link to="/setup" className="text-sm font-medium text-gray-600 hover:text-blue-600 transition-colors">
+                      면접 설정
+                    </Link>
+                  </>
+                )}
                 <div className="flex items-center gap-2">
                   <UserCircle className="w-5 h-5 text-gray-600" />
                   <span className="text-sm font-medium text-gray-700 hidden sm:block">

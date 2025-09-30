@@ -1,32 +1,85 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 import { User, Session } from '@supabase/supabase-js'
-import { supabase } from '../lib/supabase'
+import { supabase, UserProfile } from '../lib/supabase'
 
 interface AuthContextType {
   user: User | null
   session: Session | null
   loading: boolean
+  profile: UserProfile | null
+  isAdmin: boolean
   signUp: (email: string, password: string, name: string) => Promise<{ error: any; isExistingUser: boolean; confirmationSent: boolean }>
   signIn: (email: string, password: string) => Promise<{ error: any }>
   signOut: () => Promise<{ error: any }>
+  refreshProfile: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
+
+const PROFILE_FETCH_TIMEOUT_MS = 8000
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
   const [session, setSession] = useState<Session | null>(null)
   const [loading, setLoading] = useState(true)
+  const [profile, setProfile] = useState<UserProfile | null>(null)
+  const [isAdmin, setIsAdmin] = useState(false)
+
+  const loadProfile = async (currentSession: Session | null) => {
+    if (!currentSession?.user) {
+      setProfile(null)
+      setIsAdmin(false)
+      return
+    }
+
+    try {
+      const abortController = new AbortController()
+      const timeoutId = setTimeout(() => abortController.abort(), PROFILE_FETCH_TIMEOUT_MS)
+
+      try {
+        const query = supabase
+          .from('user_profiles')
+          .select('*')
+          .eq('user_id', currentSession.user.id)
+          .abortSignal(abortController.signal)
+
+        const { data, error, status } = await query.maybeSingle()
+
+        if (error && status !== 406) {
+          throw error
+        }
+
+        const loadedProfile = (data as UserProfile) ?? null
+        setProfile(loadedProfile)
+        setIsAdmin((loadedProfile?.role ?? '').toLowerCase() === 'admin')
+      } finally {
+        clearTimeout(timeoutId)
+      }
+
+    } catch (error: any) {
+      if (error?.name === 'AbortError') {
+        console.warn('AuthContext: 프로필 로딩이 시간 초과되었습니다.', error)
+      } else {
+        console.error('AuthContext: Error loading profile:', error)
+      }
+      setProfile(null)
+      setIsAdmin(false)
+    }
+  }
 
   useEffect(() => {
     // 초기 세션 상태 확인
     const getSession = async () => {
+      setLoading(true)
       try {
         const { data: { session } } = await supabase.auth.getSession()
         setSession(session)
         setUser(session?.user ?? null)
+        await loadProfile(session)
       } catch (error) {
         console.error('AuthContext: Error getting session:', error)
+        setProfile(null)
+        setIsAdmin(false)
       } finally {
         setLoading(false)
       }
@@ -37,16 +90,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Auth 상태 변화 구독
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session);
-      setUser(session?.user ?? null);
-      setLoading(false);
-    });
+    } = supabase.auth.onAuthStateChange(async (event, session) => {
+      const skipProfileLoad = event === 'TOKEN_REFRESHED'
+
+      if (!skipProfileLoad) {
+        setLoading(true)
+      }
+
+      setSession(session)
+      setUser(session?.user ?? null)
+
+      try {
+        if (skipProfileLoad) {
+          if (!session?.user) {
+            setProfile(null)
+            setIsAdmin(false)
+          }
+        } else {
+          await loadProfile(session)
+        }
+      } catch (error) {
+        console.error('AuthContext: Error reacting to auth state change:', error)
+        if (!session?.user) {
+          setProfile(null)
+          setIsAdmin(false)
+        }
+      } finally {
+        setLoading(false)
+      }
+    })
 
     return () => {
-      subscription.unsubscribe();
-    };
-  }, []);
+      subscription.unsubscribe()
+    }
+  }, [])
 
   const signUp = async (email: string, password: string, name: string) => {
     const { data, error } = await supabase.auth.signUp({
@@ -98,19 +175,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = async () => {
     const { error } = await supabase.auth.signOut()
     if (!error) {
-      setSession(null);
-      setUser(null);
+      setSession(null)
+      setUser(null)
+      setProfile(null)
+      setIsAdmin(false)
     }
     return { error }
+  }
+
+  const refreshProfile = async () => {
+    await loadProfile(session)
   }
 
   const value = {
     user,
     session,
     loading,
+    profile,
+    isAdmin,
     signUp,
     signIn,
     signOut,
+    refreshProfile,
   }
 
   return (
