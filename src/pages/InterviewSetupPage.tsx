@@ -46,13 +46,14 @@ type FactorModalState = {
   data: EvaluationFactor | null;
 }
 
+type QuestionPart = 'start' | 'record' | 'end';
+
 type AdvancedSettings = {
   preset: string;
   question_depth: string;
-  question_method: string;
+  generated_question_parts: QuestionPart[];
   allow_follow_up: boolean;
   max_follow_up_depth: number;
-  time_distribution: string;
   interviewer_interaction: boolean;
   question_order: string;
   answer_time_limit: string;
@@ -126,7 +127,7 @@ const PRESETS: { [key: string]: Partial<AdvancedSettings> } = {
   beginner: {
     preset: 'beginner',
     question_depth: 'surface',
-    question_method: 'direct',
+    generated_question_parts: ['record'],
     allow_follow_up: false,
     pressure_level: 'comfortable',
     encouragement_frequency: 'frequent',
@@ -135,7 +136,7 @@ const PRESETS: { [key: string]: Partial<AdvancedSettings> } = {
   standard: {
     preset: 'standard',
     question_depth: 'in-depth',
-    question_method: 'direct',
+    generated_question_parts: ['start', 'record', 'end'],
     allow_follow_up: true,
     max_follow_up_depth: 2,
     pressure_level: 'standard',
@@ -145,7 +146,7 @@ const PRESETS: { [key: string]: Partial<AdvancedSettings> } = {
   advanced: {
     preset: 'advanced',
     question_depth: 'professional',
-    question_method: 'open',
+    generated_question_parts: ['start', 'record', 'end'],
     allow_follow_up: true,
     max_follow_up_depth: 4,
     pressure_level: 'tense',
@@ -158,10 +159,9 @@ const PRESETS: { [key: string]: Partial<AdvancedSettings> } = {
 const DEFAULT_ADVANCED_SETTINGS: AdvancedSettings = {
   preset: 'standard',
   question_depth: 'in-depth',
-  question_method: 'direct',
+  generated_question_parts: ['start', 'record', 'end'],
   allow_follow_up: true,
   max_follow_up_depth: 2,
-  time_distribution: 'even',
   interviewer_interaction: false,
   question_order: 'sequential',
   answer_time_limit: 'flexible',
@@ -218,6 +218,42 @@ export default function InterviewSetupPage() {
     });
   };
 
+  const handleQuestionPartChange = (part: QuestionPart) => {
+    const currentParts = advancedSettings.generated_question_parts;
+    const newParts = currentParts.includes(part)
+      ? currentParts.filter(p => p !== part)
+      : [...currentParts, part];
+
+    let maxParts = 3;
+    if (duration === 3) maxParts = 1;
+    else if (duration === 5) maxParts = 2;
+
+    if (newParts.length > maxParts) {
+      // Optionally, provide feedback to the user
+      console.log(`면접 시간이 ${duration}분일 경우 최대 ${maxParts}개의 파트만 선택할 수 있습니다.`);
+      return;
+    }
+    
+    handleAdvancedSettingChange('generated_question_parts', newParts);
+  };
+
+  useEffect(() => {
+    let maxParts = 3;
+    if (duration === 3) maxParts = 1;
+    else if (duration === 5) maxParts = 2;
+
+    setAdvancedSettings(prev => {
+      if (prev.generated_question_parts.length > maxParts) {
+        return {
+          ...prev,
+          generated_question_parts: prev.generated_question_parts.slice(0, maxParts),
+          preset: 'custom'
+        };
+      }
+      return prev;
+    });
+  }, [duration]);
+
   const handlePresetChange = (presetName: string) => {
     setAdvancedSettings(prev => ({
       ...prev,
@@ -239,14 +275,18 @@ export default function InterviewSetupPage() {
       const mappedInterviewers = customInterviewers?.map(i => ({ ...i, id: i.id.toString(), is_custom: true, role: i.role as InterviewerRole })) || [];
       setAllInterviewers([...DEFAULT_INTERVIEWERS, ...mappedInterviewers]);
 
-      const mappedFactors = customFactors?.map(f => ({ ...f, id: f.id.toString(), isDefault: false, weight: 0, selected: false, criteria: f.criteria.map((c: any) => ({...c, id: c.id.toString()})) })) || [];
+      const mappedFactors = customFactors?.map(f => ({ ...f, id: f.id.toString(), isDefault: false, weight: 0, selected: false, criteria: (f.criteria || []).map((c: any) => ({...c, id: c.id.toString()})) })) || [];
       setEvaluationFactors([...DEFAULT_FACTORS, ...mappedFactors]);
 
       if (setup) {
         setSelectedOfficer(setup.selected_interviewer_ids?.[0] || null);
         setSelectedProfessors(setup.selected_interviewer_ids?.slice(1) || []);
         setDuration(setup.duration || 10);
-        setAdvancedSettings({ ...DEFAULT_ADVANCED_SETTINGS, ...setup });
+        setAdvancedSettings({ 
+          ...DEFAULT_ADVANCED_SETTINGS, 
+          ...setup,
+          generated_question_parts: setup.generated_question_parts ?? DEFAULT_ADVANCED_SETTINGS.generated_question_parts,
+        });
       }
     } catch (err: any) {
       setError('데이터 로딩 실패: ' + err.message);
@@ -470,20 +510,19 @@ export default function InterviewSetupPage() {
                     </p>
                   </div>
                   <div>
-                    <SettingRadioGroup
-                      label="질문 방식"
-                      value={advancedSettings.question_method}
-                      onChange={(e) => handleAdvancedSettingChange('question_method', e.target.value)}
+                    <SettingCheckboxGroup
+                      label="생성 질문 파트"
+                      duration={duration}
+                      value={advancedSettings.generated_question_parts}
+                      onChange={handleQuestionPartChange}
                       options={[
-                        { value: 'direct', label: '직접적' },
-                        { value: 'leading', label: '유도적' },
-                        { value: 'open', label: '개방적' },
+                        { value: 'start', label: '시작' },
+                        { value: 'record', label: '생기부' },
+                        { value: 'end', label: '종료' },
                       ]}
                     />
-                    <p className="text-xs text-gray-500 mt-1 pl-2">
-                      {advancedSettings.question_method === 'direct' && '명확하고 간결한 답변을 요구하는 질문을 합니다.'}
-                      {advancedSettings.question_method === 'leading' && '특정 답변 방향을 암시하거나 힌트를 포함한 질문을 합니다.'}
-                      {advancedSettings.question_method === 'open' && '자유롭게 자신의 생각과 경험을 이야기하도록 유도하는 질문을 합니다.'}
+                     <p className="text-xs text-gray-500 mt-1 pl-2">
+                      면접 시간에 따라 선택 가능한 파트 수가 제한됩니다. (3분: 1개, 5분: 2개, 7분 이상: 3개)
                     </p>
                   </div>
                   <div>
@@ -512,21 +551,6 @@ export default function InterviewSetupPage() {
                 <h3 className="font-bold text-lg flex items-center gap-2"><Mic size={20} className="text-teal-600"/>면접 진행 방식</h3>
                 <div className="space-y-4 mt-4">
                     <div>
-                      <SettingRadioGroup
-                        label="질문 시간 분배"
-                        value={advancedSettings.time_distribution}
-                        onChange={(e) => handleAdvancedSettingChange('time_distribution', e.target.value)}
-                        options={[
-                          { value: 'even', label: '균등' },
-                          { value: 'weighted', label: '가중치' },
-                        ]}
-                      />
-                      <p className="text-xs text-gray-500 mt-1 pl-2">
-                        {advancedSettings.time_distribution === 'even' && '모든 평가 요소에 대해 비슷한 수의 질문을 합니다.'}
-                        {advancedSettings.time_distribution === 'weighted' && '설정한 평가 요소의 가중치에 따라 질문 수를 조절합니다.'}
-                      </p>
-                    </div>
-                    <div>
                       <SettingToggle
                         label="면접관 상호작용 허용"
                         checked={advancedSettings.interviewer_interaction}
@@ -541,13 +565,11 @@ export default function InterviewSetupPage() {
                         onChange={(e) => handleAdvancedSettingChange('question_order', e.target.value)}
                         options={[
                           { value: 'sequential', label: '순차적' },
-                          { value: 'random', label: '랜덤' },
                           { value: 'adaptive', label: '적응형' },
                         ]}
                       />
                       <p className="text-xs text-gray-500 mt-1 pl-2">
                         {advancedSettings.question_order === 'sequential' && '미리 정해진 순서에 따라 질문합니다.'}
-                        {advancedSettings.question_order === 'random' && '평가 요소와 관계없이 질문을 무작위로 제시합니다.'}
                         {advancedSettings.question_order === 'adaptive' && '답변 내용과 수준에 맞춰 다음 질문의 난이도와 유형을 조절합니다.'}
                       </p>
                     </div>
@@ -716,6 +738,34 @@ export default function InterviewSetupPage() {
 }
 
 // --- 하위 컴포넌트들 ---
+
+const SettingCheckboxGroup = ({ label, duration, value, onChange, options }) => {
+  let maxParts = 3;
+  if (duration === 3) maxParts = 1;
+  else if (duration === 5) maxParts = 2;
+  
+  const isDisabled = (part: QuestionPart) => {
+    return value.length >= maxParts && !value.includes(part);
+  };
+
+  return (
+    <div className="flex items-center justify-between">
+      <label className="text-sm font-medium text-gray-700">{label}</label>
+      <div className="flex items-center gap-2 rounded-lg p-1 bg-gray-100">
+        {options.map(option => (
+          <button
+            key={option.value}
+            onClick={() => onChange(option.value)}
+            disabled={isDisabled(option.value)}
+            className={`px-3 py-1 text-sm rounded-md transition-colors ${value.includes(option.value) ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-600 hover:bg-gray-200'} ${isDisabled(option.value) ? 'opacity-50 cursor-not-allowed' : ''}`}
+          >
+            {option.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+};
 
 const SettingRadioGroup = ({ label, value, onChange, options }) => (
   <div className="flex items-center justify-between">

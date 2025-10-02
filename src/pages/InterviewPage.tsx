@@ -28,7 +28,7 @@ const VoiceWaveform = () => {
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setBars(bars.map(() => Math.random() * 25 + 5));
+      setBars(prevBars => prevBars.map(() => Math.random() * 25 + 5));
     }, 150);
     return () => clearInterval(interval);
   }, []);
